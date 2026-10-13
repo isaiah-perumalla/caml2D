@@ -1,0 +1,12 @@
+(executable
+ (name main)
+ (modes js)
+ (libraries caml2d js_of_ocaml)
+ (preprocess
+  (pps js_of_ocaml-ppx)))
+
+; copy the static files next to main.bc.js so _build/default/web is servable
+
+(alias
+ (name all)
+ (deps index.html style.css))
