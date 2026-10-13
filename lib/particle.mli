@@ -19,6 +19,6 @@ module Particles : sig
   val init : int -> (int -> Particle.t) -> t
   val get : t -> int -> Particle.t
   val set : t -> int -> Particle.t -> unit
-  val apply_force : t -> int -> force -> unit
+  val apply_force : t -> int -> force -> float -> unit
   val integrate : t -> float -> unit
 end

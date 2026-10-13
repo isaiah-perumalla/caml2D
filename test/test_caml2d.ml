@@ -7,3 +7,89 @@ let () =
   assert (Vec2.sub a a = Vec2.zero);
   assert (Vec2.scale 2. a = Vec2.v 6. 8.);
   assert (Vec2.dot a a = 25.)
+
+(* Particles stores 32-bit floats, so these tests use values that are exact in
+   float32 (small integers and powers of two) and compare with [=]. *)
+
+open Particle
+
+let particle ?(mass = 1.) (px, py) (vx, vy) =
+  Particle.create
+    (Position (Vec2.v px py))
+    (Velocity (Vec2.v vx vy))
+    (Mass mass)
+
+let raises_invalid_arg f =
+  match f () with exception Invalid_argument _ -> true | _ -> false
+
+(* a different particle for each index, so layout mistakes show up *)
+let nth i =
+  let k = float_of_int i in
+  particle ~mass:(2. ** k) (k, k +. 10.) (k +. 20., k +. 30.)
+
+let same_particle a b =
+  Particle.position a = Particle.position b
+  && Particle.velocity a = Particle.velocity b
+  && Particle.mass a = Particle.mass b
+
+let () =
+  (* Particle.create *)
+  let p = particle ~mass:2. (1., 2.) (3., 4.) in
+  assert (Particle.position p = Position (Vec2.v 1. 2.));
+  assert (Particle.velocity p = Velocity (Vec2.v 3. 4.));
+  assert (Particle.mass p = Mass 2.);
+  assert (Particle.inv_mass p = Mass 0.5);
+  assert (Particle.inv_mass (particle ~mass:0. (0., 0.) (0., 0.)) = Mass 0.);
+  assert (raises_invalid_arg (fun () -> particle ~mass:(-1.) (0., 0.) (0., 0.)));
+  assert (raises_invalid_arg (fun () -> particle ~mass:nan (0., 0.) (0., 0.)))
+
+let () =
+  (* init then get returns every particle unchanged *)
+  let n = 4 in
+  let ps = Particles.init n nth in
+  for i = 0 to n - 1 do
+    assert (same_particle (Particles.get ps i) (nth i))
+  done
+
+let () =
+  (* set changes only the particle at that index *)
+  let ps = Particles.init 3 nth in
+  let p = particle ~mass:4. (100., 200.) (-1., -2.) in
+  Particles.set ps 1 p;
+  assert (same_particle (Particles.get ps 0) (nth 0));
+  assert (same_particle (Particles.get ps 1) p);
+  assert (same_particle (Particles.get ps 2) (nth 2))
+
+let () =
+  (* out-of-range indices are rejected *)
+  let ps = Particles.init 2 nth in
+  assert (raises_invalid_arg (fun () -> Particles.get ps (-1)));
+  assert (raises_invalid_arg (fun () -> Particles.get ps 2));
+  assert (raises_invalid_arg (fun () -> Particles.set ps (-1) (nth 0)));
+  assert (raises_invalid_arg (fun () -> Particles.set ps 2 (nth 0)))
+
+let () =
+  (* apply_force changes velocity by force / mass * dt, and nothing else *)
+  let ps = Particles.init 2 (fun _ -> particle ~mass:2. (1., 2.) (3., 4.)) in
+  Particles.apply_force ps 0 (Force (Vec2.v 4. 8.)) 0.5;
+  assert (
+    same_particle (Particles.get ps 0) (particle ~mass:2. (1., 2.) (4., 6.)));
+  assert (
+    same_particle (Particles.get ps 1) (particle ~mass:2. (1., 2.) (3., 4.)))
+
+let () =
+  (* a particle with mass 0 is immovable: forces do not affect it *)
+  let still = particle ~mass:0. (1., 2.) (0., 0.) in
+  let ps = Particles.init 1 (fun _ -> still) in
+  Particles.apply_force ps 0 (Force (Vec2.v 4. 8.)) 0.5;
+  assert (same_particle (Particles.get ps 0) still)
+
+let () =
+  (* integrate moves every particle by velocity * dt *)
+  let ps =
+    Particles.init 2 (fun i ->
+        if i = 0 then particle (1., 2.) (4., -8.) else particle (0., 0.) (2., 2.))
+  in
+  Particles.integrate ps 0.5;
+  assert (same_particle (Particles.get ps 0) (particle (3., -2.) (4., -8.)));
+  assert (same_particle (Particles.get ps 1) (particle (1., 1.) (2., 2.)))
