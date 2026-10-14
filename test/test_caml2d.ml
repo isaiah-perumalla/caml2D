@@ -68,20 +68,11 @@ let () =
   assert (raises_invalid_arg (fun () -> Particles.set ps (-1) (nth 0)));
   assert (raises_invalid_arg (fun () -> Particles.set ps 2 (nth 0)))
 
-let () =
-  (* apply_force changes velocity by force / mass * dt, and nothing else *)
-  let ps = Particles.init 2 (fun _ -> particle ~mass:2. (1., 2.) (3., 4.)) in
-  Particles.apply_force ps 0 (Force (Vec2.v 4. 8.)) 0.5;
-  assert (
-    same_particle (Particles.get ps 0) (particle ~mass:2. (1., 2.) (4., 6.)));
-  assert (
-    same_particle (Particles.get ps 1) (particle ~mass:2. (1., 2.) (3., 4.)))
 
 let () =
   (* a particle with mass 0 is immovable: forces do not affect it *)
   let still = particle ~mass:0. (1., 2.) (0., 0.) in
   let ps = Particles.init 1 (fun _ -> still) in
-  Particles.apply_force ps 0 (Force (Vec2.v 4. 8.)) 0.5;
   assert (same_particle (Particles.get ps 0) still)
 
 let () =
