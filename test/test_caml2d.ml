@@ -19,6 +19,12 @@ let particle ?(mass = 1.) (px, py) (vx, vy) =
     (Velocity (Vec2.v vx vy))
     (Mass mass)
 
+(* big enough that no test particle reaches the walls *)
+module W = Particles.Make (struct
+  let top_left = Vec2.v (-1000.) (-1000.)
+  let bottom_right = Vec2.v 1000. 1000.
+end)
+
 let raises_invalid_arg f =
   match f () with exception Invalid_argument _ -> true | _ -> false
 
@@ -30,7 +36,19 @@ let nth i =
 let same_particle a b =
   Particle.position a = Particle.position b
   && Particle.velocity a = Particle.velocity b
-  && Particle.mass a = Particle.mass b
+  && Particle.mass a = Particle.mass b 
+  
+
+  let () =
+  (* iter positions *)
+  let ps = W.init 3 (fun i -> particle (W.B.top_left.x /. 2.0, float_of_int i *. 3.) (0., 0.)) in
+  let calls = ref 0 in
+  W.iteri_positions (fun i x y ->
+    assert (x = W.B.top_left.x /. 2.);
+    assert (y = float_of_int i *. 3.);
+    incr calls) ps;
+  
+  assert (!calls = 3)
 
 let () =
   (* Particle.create *)
@@ -46,41 +64,41 @@ let () =
 let () =
   (* init then get returns every particle unchanged *)
   let n = 4 in
-  let ps = Particles.init n nth in
+  let ps = W.init n nth in
   for i = 0 to n - 1 do
-    assert (same_particle (Particles.get ps i) (nth i))
+    assert (same_particle (W.get ps i) (nth i))
   done
 
 let () =
   (* set changes only the particle at that index *)
-  let ps = Particles.init 3 nth in
+  let ps = W.init 3 nth in
   let p = particle ~mass:4. (100., 200.) (-1., -2.) in
-  Particles.set ps 1 p;
-  assert (same_particle (Particles.get ps 0) (nth 0));
-  assert (same_particle (Particles.get ps 1) p);
-  assert (same_particle (Particles.get ps 2) (nth 2))
+  W.set ps 1 p;
+  assert (same_particle (W.get ps 0) (nth 0));
+  assert (same_particle (W.get ps 1) p);
+  assert (same_particle (W.get ps 2) (nth 2))
 
 let () =
   (* out-of-range indices are rejected *)
-  let ps = Particles.init 2 nth in
-  assert (raises_invalid_arg (fun () -> Particles.get ps (-1)));
-  assert (raises_invalid_arg (fun () -> Particles.get ps 2));
-  assert (raises_invalid_arg (fun () -> Particles.set ps (-1) (nth 0)));
-  assert (raises_invalid_arg (fun () -> Particles.set ps 2 (nth 0)))
+  let ps = W.init 2 nth in
+  assert (raises_invalid_arg (fun () -> W.get ps (-1)));
+  assert (raises_invalid_arg (fun () -> W.get ps 2));
+  assert (raises_invalid_arg (fun () -> W.set ps (-1) (nth 0)));
+  assert (raises_invalid_arg (fun () -> W.set ps 2 (nth 0)))
 
 
 let () =
   (* a particle with mass 0 is immovable: forces do not affect it *)
   let still = particle ~mass:0. (1., 2.) (0., 0.) in
-  let ps = Particles.init 1 (fun _ -> still) in
-  assert (same_particle (Particles.get ps 0) still)
+  let ps = W.init 1 (fun _ -> still) in
+  assert (same_particle (W.get ps 0) still)
 
 let () =
   (* integrate moves every particle by velocity * dt *)
   let ps =
-    Particles.init 2 (fun i ->
+    W.init 2 (fun i ->
         if i = 0 then particle (1., 2.) (4., -8.) else particle (0., 0.) (2., 2.))
   in
-  Particles.integrate ps 0.5;
-  assert (same_particle (Particles.get ps 0) (particle (3., -2.) (4., -8.)));
-  assert (same_particle (Particles.get ps 1) (particle (1., 1.) (2., 2.)))
+  W.integrate ps 0.5;
+  assert (same_particle (W.get ps 0) (particle (3., -2.) (4., -8.)));
+  assert (same_particle (W.get ps 1) (particle (1., 1.) (2., 2.)))
