@@ -1,24 +1,19 @@
-type  position = Position of Vec2.t 
-type  velocity = Velocity of Vec2.t
-type  force = Force of Vec2.t 
-type  mass  = Mass of float
-
-
-module Particle : sig
-  type t 
-  val position: t -> position
-  val velocity: t -> velocity
-  val mass: t -> mass
-  val inv_mass: t -> mass
-  val create : position -> velocity -> mass -> t
+module type BOUNDS = sig 
+    val top_left: Vec2.t
+    val bottom_right: Vec2.t
 end
 
+module type S = sig
+    module B : BOUNDS
 
-module Particles : sig
-  type t 
-  val init : int -> (int -> Particle.t) -> t
-  val get : t -> int -> Particle.t
-  val set : t -> int -> Particle.t -> unit
-  val apply_force : t -> int -> force -> float -> unit
-  val integrate : t -> float -> unit
+    type t
+
+    val init : int -> (int -> Particle.t) -> t
+    val get : t -> int -> Particle.t
+    val set : t -> int -> Particle.t -> unit
+    val add_force : t -> Particle.force -> unit
+    val integrate : t -> float -> unit
+    val iteri_positions : (int -> float -> float -> unit) -> t  -> unit
 end
+
+module Make (B: BOUNDS) : S

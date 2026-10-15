@@ -16,7 +16,7 @@ open Particle
 let particle ?(mass = 1.) (px, py) (vx, vy) =
   Particle.create
     (Position (Vec2.v px py))
-    (Velocity (Vec2.v vx vy))
+    (PriorPosition (Vec2.v vx vy))
     (Mass mass)
 
 (* big enough that no test particle reaches the walls *)
@@ -35,7 +35,7 @@ let nth i =
 
 let same_particle a b =
   Particle.position a = Particle.position b
-  && Particle.velocity a = Particle.velocity b
+  && Particle.prior_position a = Particle.prior_position b
   && Particle.mass a = Particle.mass b 
   
 
@@ -54,7 +54,7 @@ let () =
   (* Particle.create *)
   let p = particle ~mass:2. (1., 2.) (3., 4.) in
   assert (Particle.position p = Position (Vec2.v 1. 2.));
-  assert (Particle.velocity p = Velocity (Vec2.v 3. 4.));
+  assert (Particle.prior_position p = PriorPosition (Vec2.v 3. 4.));
   assert (Particle.mass p = Mass 2.);
   assert (Particle.inv_mass p = Mass 0.5);
   assert (Particle.inv_mass (particle ~mass:0. (0., 0.) (0., 0.)) = Mass 0.);
@@ -97,8 +97,10 @@ let () =
   (* integrate moves every particle by velocity * dt *)
   let ps =
     W.init 2 (fun i ->
-        if i = 0 then particle (1., 2.) (4., -8.) else particle (0., 0.) (2., 2.))
+        if i = 0 then particle (1., 2.) (0., 0.) else particle (0., 0.) (0., 0.))
   in
-  W.integrate ps 0.5;
-  assert (same_particle (W.get ps 0) (particle (3., -2.) (4., -8.)));
-  assert (same_particle (W.get ps 1) (particle (1., 1.) (2., 2.)))
+  W.add_force ps (Force (Vec2.v 1. 0.));
+  W.integrate ps 1.0;
+  (* //first particle already moving *)
+  assert (same_particle (W.get ps 0) (particle (3., 4.) (1., 2.)));
+  assert (same_particle (W.get ps 1) (particle (1., 0.) (0., 0.)))

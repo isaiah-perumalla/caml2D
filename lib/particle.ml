@@ -1,16 +1,16 @@
 type position = Position of Vec2.t
-type velocity = Velocity of Vec2.t
+type prior_position = PriorPosition of Vec2.t
 type force = Force of Vec2.t
 type mass = Mass of float
-type t = { position : position; velocity : velocity; mass : mass }
+type t = { position : position; prior_position : prior_position; mass : mass }
 
-let create pos vel (Mass m as mass) =
+let create pos ppos (Mass m as mass) =
   (* written as a negated >= so that nan is rejected too *)
   if not (m >= 0.) then invalid_arg "Particle.create: mass must be non-negative";
-  { position = pos; velocity = vel; mass }
+  { position = pos; prior_position = ppos; mass }
 
 let position p = p.position
-let velocity p = p.velocity
+let prior_position  p = p.prior_position
 
 let inv_mass p =
   let (Mass m) = p.mass in
