@@ -103,4 +103,44 @@ let () =
   W.integrate ps 1.0;
   (* //first particle already moving *)
   assert (same_particle (W.get ps 0) (particle (3., 4.) (1., 2.)));
-  assert (same_particle (W.get ps 1) (particle (1., 0.) (0., 0.)))
+  assert (same_particle (W.get ps 1) (particle (1., 0.) (0., 0.)));
+
+  (* no more forces applied everything should move a constnat velocity *)
+  (* particle 0 should move at 2 units/step, particle 1 move 1 unit/step *)
+  W.integrate ps 1.0;
+  
+  assert (same_particle (W.get ps 0) (particle (5., 6.) (3., 4.)));
+  assert (same_particle (W.get ps 1) (particle (2., 0.) (1., 0.)))
+
+(* a small box so particles move past the walls *)
+module Box = Particles.Make (struct
+  let top_left = Vec2.v 0. 0.
+  let bottom_right = Vec2.v 10. 10.
+end)
+
+let () =
+  (* right wall: x = 9 moving +2 per step would reach 11, so it is clamped to
+     10 and the prior is mirrored, sending it back inside on the next step *)
+  let ps = Box.init 1 (fun _ -> particle (9., 5.) (7., 5.)) in
+  Box.integrate ps 0.5;
+  assert (same_particle (Box.get ps 0) (particle (10., 5.) (12., 5.)));
+  Box.integrate ps 0.5;
+  assert (same_particle (Box.get ps 0) (particle (8., 5.) (10., 5.)))
+
+let () =
+  (* floor only: y crosses the bottom wall while x stays inside *)
+  let ps = Box.init 1 (fun _ -> particle (5., 9.) (5., 7.)) in
+  Box.integrate ps 0.5;
+  assert (same_particle (Box.get ps 0) (particle (5., 10.) (5., 12.)))
+
+let () =
+  (* bottom-right corner: both walls in the same step *)
+  let ps = Box.init 1 (fun _ -> particle (9., 9.) (7., 7.)) in
+  Box.integrate ps 0.5;
+  assert (same_particle (Box.get ps 0) (particle (10., 10.) (12., 12.)))
+
+let () =
+  (* top-left corner: left wall and ceiling *)
+  let ps = Box.init 1 (fun _ -> particle (1., 1.) (3., 3.)) in
+  Box.integrate ps 0.5;
+  assert (same_particle (Box.get ps 0) (particle (0., 0.) (-2., -2.)))

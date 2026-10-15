@@ -112,6 +112,7 @@ let add_force ps (Force f) =
 
   let integrate ps dt =
     (* verlet integration *)
+    (* x' = 2x − prev + a·dt² *)
     let size = Bigarray.Array1.dim !(ps.positions) / 2 in
     for i = 0 to size - 1 do
       let idx = i * 2 in
@@ -127,12 +128,32 @@ let add_force ps (Force f) =
       let posx' = 2.0 *. posx -. prev_posx +. ax *. dt *. dt in
       let posy' = 2.0 *. posy -. prev_posy +. ay *. dt *. dt in
       !(ps.prev_positions).{idx} <- posx';
-      !(ps.prev_positions).{idx + 1} <- posy'
+      !(ps.prev_positions).{idx + 1} <- posy'; 
+      
+      (* boundary conditions *)
+      (*should this be move to Bounds module ?*)
+      if posx' < B.top_left.x || posx' > B.bottom_right.x then
+        begin
+        let dx = (posx' -. posx)  in
+        let adjusted_x = if posx' < B.top_left.x then B.top_left.x else B.bottom_right.x in
+        !(ps.prev_positions).{idx} <- adjusted_x;
+        !(ps.positions).{idx} <- adjusted_x +. dx;
+        
+        end;
+
+      if posy' < B.top_left.y || posy' > B.bottom_right.y then begin
+        let dy = (posy' -. posy)  in
+        let adjusted_y = if posy' < B.top_left.y then B.top_left.y else B.bottom_right.y in
+        !(ps.prev_positions).{idx + 1} <- adjusted_y;
+        !(ps.positions).{idx + 1} <- adjusted_y +. dy
+      end;    
     done;
+
     let prev_positions = !(ps.positions) in
     ps.positions := !(ps.prev_positions);
     ps.prev_positions := prev_positions;
     Bigarray.Array1.fill ps.forces 0.0
+
 
 
 
