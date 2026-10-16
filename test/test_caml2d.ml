@@ -23,6 +23,7 @@ let particle ?(mass = 1.) (px, py) (vx, vy) =
 module W = Particles.Make (struct
   let top_left = Vec2.v (-1000.) (-1000.)
   let bottom_right = Vec2.v 1000. 1000.
+  let gravity = Vec2.zero (* pixels per second^2 *)
 end)
 
 let raises_invalid_arg f =
@@ -41,10 +42,10 @@ let same_particle a b =
 
   let () =
   (* iter positions *)
-  let ps = W.init 3 (fun i -> particle (W.B.top_left.x /. 2.0, float_of_int i *. 3.) (0., 0.)) in
+  let ps = W.init 3 (fun i -> particle (W.Config.top_left.x /. 2.0, float_of_int i *. 3.) (0., 0.)) in
   let calls = ref 0 in
   W.iteri_positions (fun i x y ->
-    assert (x = W.B.top_left.x /. 2.);
+    assert (x = W.Config.top_left.x /. 2.);
     assert (y = float_of_int i *. 3.);
     incr calls) ps;
   
@@ -116,6 +117,7 @@ let () =
 module Box = Particles.Make (struct
   let top_left = Vec2.v 0. 0.
   let bottom_right = Vec2.v 10. 10.
+  let gravity = Vec2.v 0. 0.
 end)
 
 let () =

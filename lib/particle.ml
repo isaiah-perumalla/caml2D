@@ -1,6 +1,8 @@
 type position = Position of Vec2.t
 type prior_position = PriorPosition of Vec2.t
 type force = Force of Vec2.t
+type spring = Spring of float * float
+
 type mass = Mass of float
 type t = { position : position; prior_position : prior_position; mass : mass }
 
