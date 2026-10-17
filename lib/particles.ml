@@ -18,6 +18,11 @@ module type S = sig
     val add_force : t -> Particle.force -> unit
     val integrate : t -> float -> unit
     val iteri_positions : (int -> float -> float -> unit) -> t  -> unit
+
+    type points = Vecarray.Float32Vec2.t
+    (* the current positions; the buffer is swapped by [integrate], so call
+       this again after each step rather than keeping the result *)
+    val positions : t -> points
 end
 
 module V2 = Vecarray.Float32Vec2
@@ -148,11 +153,11 @@ let set ps i particle =
 
 let add_force ps (Force f) = V2.update_add ps.forces f.x f.y 
     
+  (* unchecked: only called from the spring loop, whose indices were
+     validated by [connect] *)
   let add_force_to_particle ps i fx fy =
-    if i < 0 || i >= V2.length !(ps.positions)  then
-      invalid_arg "Particles.add_force_to_particle: index out of bounds";
-      let x = V2.getx ps.forces i and y = V2.gety ps.forces i in
-      V2.set ps.forces i (x +. fx) (y +. fy)
+    let x = V2.getx ps.forces i and y = V2.gety ps.forces i in
+    V2.set ps.forces i (x +. fx) (y +. fy)
     
 
   let connect ps idx1 idx2 (Particle.Spring (k, rest_length)) =
@@ -227,6 +232,9 @@ let add_force ps (Force f) = V2.update_add ps.forces f.x f.y
 
 
 
-  let iteri_positions f t = V2.iteri f !(t.positions) 
+  let iteri_positions f t = V2.iteri f !(t.positions)
+
+  type points = V2.t
+  let positions t = !(t.positions)
   
 end

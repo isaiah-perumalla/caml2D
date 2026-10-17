@@ -1,40 +1,10 @@
 open Js_of_ocaml
 open Caml2d
 
-module HtmlCanvas = struct
-  type ctx = Dom_html.canvasRenderingContext2D Js.t
-
-  let clear (ctx : ctx) =
-    let canvas = ctx##.canvas in
-    ctx##clearRect (Js.float 0.) (Js.float 0.)
-      (Js.float (float_of_int canvas##.width))
-      (Js.float (float_of_int canvas##.height))
-
-  let circle ~i ~(ctx : ctx) ~x ~y ~radius =
-    ctx##beginPath;
-    ctx##arc (Js.float x) (Js.float y) (Js.float radius) (Js.float 0.)
-      (Js.float (2. *. Float.pi))
-      Js._false;
-    ctx##fill;
-    ctx##stroke;
-    (* label the circle with its index, centred *)
-    ctx##.fillStyle := Js.string "black";
-    ctx##.textAlign := Js.string "center";
-    ctx##.textBaseline := Js.string "middle";
-    ctx##fillText (Js.string (string_of_int i)) (Js.float x) (Js.float y);
-    ctx##.fillStyle := Js.string "white"
-
-  let line (ctx : ctx) ~x1 ~y1 ~x2 ~y2 =
-    ctx##beginPath;
-    ctx##moveTo (Js.float x1) (Js.float y1);
-    ctx##lineTo (Js.float x2) (Js.float y2);
-    ctx##stroke
-end
-
 
 let dt = 1. /. 120. (* fixed physics step; Verlet needs a constant dt *)
 let max_dt = 0.05 (* seconds; caps the catch-up after a background tab *)
-let radius = 20.
+let radius = 15.
 let one_second = (Js.float 1000.)
 
 let () =
@@ -56,25 +26,36 @@ let () =
     let gravity =  Vec2.v 0. 980.0 (* pixels per second^2 *)
   end) in
   
-  let module R = Renderer.Make (HtmlCanvas) (World) in
+  let module HTML = Canvas.HtmlCanvas (Vecarray.Float32Vec2) in
+  let module R = Renderer.Make (HTML) (World) in
   
+  let rows = 7 and n = 49 in
+  let cols = (n + rows - 1) / rows in
+  (* spread the grid across the box with equal spacing, using whichever of
+     width or height is tighter so every particle starts on screen *)
+  let spacing =
+    Float.min
+      ((width -. 10. *. radius) /. float_of_int (cols + 1))
+      ((height -. 10. *. radius) /. float_of_int (rows + 1))
+  in
   let ps =
-    World.init 12 (fun i ->
+    World.init n (fun i ->
         (* prior position = position, so the ball starts at rest *)
-        let offsetx = float_of_int (i / 4) *. 100. in
-        let offsety = float_of_int (i mod 4) *. 100. in
-        let p = Vec2.v (width /. 2. +. offsetx) (offsety +. radius)  in
+        let x = radius +. spacing *. float_of_int (i / rows + 1) in
+        let y = radius +. spacing *. float_of_int (i mod rows) in
+        let p = Vec2.v x y in
         Particle.create (Particle.Position p) (Particle.PriorPosition p)
           (Particle.Mass 1.)) in
 
-    (* chain each column of 4 vertically: 0-1-2-3, 4-5-6-7, 8-9-10-11 *)
-  for i = 0 to 10 do
-    if (i + 1) mod 4 <> 0 then
-      World.connect ps i (i + 1) (Particle.Spring (1500., 100.))
+  (* rest length = spacing, so every spring starts relaxed *)
+  (* vertical: i -> i+1 within a column *)
+  for i = 0 to n - 2 do
+    if (i + 1) mod rows <> 0 then
+      World.connect ps i (i + 1) (Particle.Spring (1500., spacing))
   done;
-
-  for i = 0 to 7 do
-    World.connect ps i (i + 4) (Particle.Spring (150., 100.))
+  (* horizontal: i -> i+rows across columns *)
+  for i = 0 to n - 1 - rows do
+    World.connect ps i (i + rows) (Particle.Spring (150., spacing))
   done;
     
    
@@ -110,7 +91,6 @@ let () =
       acc := !acc -. dt
     done;
     Utils.FrameCounter.incr frame_counter;
-    ctx##.fillStyle := Js.string "white";
     R.render ctx ps ~radius;
     draw_fps ();
     request (loop !acc now)

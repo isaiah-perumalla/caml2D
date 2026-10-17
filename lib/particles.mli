@@ -16,6 +16,11 @@ module type S = sig
     val add_force : t -> Particle.force -> unit
     val integrate : t -> float -> unit
     val iteri_positions : (int -> float -> float -> unit) -> t  -> unit
+
+    type points = Vecarray.Float32Vec2.t
+    (* the current positions; the buffer is swapped by [integrate], so call
+       this again after each step rather than keeping the result *)
+    val positions : t -> points
     
 end
 
