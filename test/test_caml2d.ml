@@ -136,6 +136,13 @@ let () =
   assert (same_particle (Box.get ps 0) (particle (5., 10.) (5., 12.)))
 
 let () =
+  (* floor while moving sideways: y is clamped and mirrored, x keeps moving
+     +1 per step, so the prior keeps the old x *)
+  let ps = Box.init 1 (fun _ -> particle (5., 9.) (4., 7.)) in
+  Box.integrate ps 0.5;
+  assert (same_particle (Box.get ps 0) (particle (6., 10.) (5., 12.)))
+
+let () =
   (* bottom-right corner: both walls in the same step *)
   let ps = Box.init 1 (fun _ -> particle (9., 9.) (7., 7.)) in
   Box.integrate ps 0.5;
