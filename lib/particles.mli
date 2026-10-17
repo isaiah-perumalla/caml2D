@@ -16,6 +16,7 @@ module type S = sig
     val add_force : t -> Particle.force -> unit
     val integrate : t -> float -> unit
     val iteri_positions : (int -> float -> float -> unit) -> t  -> unit
+    
 end
 
 module Make (W: WORLD) : S

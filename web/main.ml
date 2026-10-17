@@ -10,13 +10,19 @@ module HtmlCanvas = struct
       (Js.float (float_of_int canvas##.width))
       (Js.float (float_of_int canvas##.height))
 
-  let circle (ctx : ctx) ~x ~y ~radius =
+  let circle ~i ~(ctx : ctx) ~x ~y ~radius =
     ctx##beginPath;
     ctx##arc (Js.float x) (Js.float y) (Js.float radius) (Js.float 0.)
       (Js.float (2. *. Float.pi))
       Js._false;
     ctx##fill;
-    ctx##stroke
+    ctx##stroke;
+    (* label the circle with its index, centred *)
+    ctx##.fillStyle := Js.string "black";
+    ctx##.textAlign := Js.string "center";
+    ctx##.textBaseline := Js.string "middle";
+    ctx##fillText (Js.string (string_of_int i)) (Js.float x) (Js.float y);
+    ctx##.fillStyle := Js.string "white"
 
   let line (ctx : ctx) ~x1 ~y1 ~x2 ~y2 =
     ctx##beginPath;
@@ -53,17 +59,25 @@ let () =
   let module R = Renderer.Make (HtmlCanvas) (World) in
   
   let ps =
-    World.init 20 (fun i ->
+    World.init 12 (fun i ->
         (* prior position = position, so the ball starts at rest *)
-        let offset = float_of_int i *. 50. in
-        let p = Vec2.v (width /. 2. +. offset) radius  in
+        let offsetx = float_of_int (i / 4) *. 100. in
+        let offsety = float_of_int (i mod 4) *. 100. in
+        let p = Vec2.v (width /. 2. +. offsetx) (offsety +. radius)  in
         Particle.create (Particle.Position p) (Particle.PriorPosition p)
           (Particle.Mass 1.)) in
+
+    (* chain each column of 4 vertically: 0-1-2-3, 4-5-6-7, 8-9-10-11 *)
+  for i = 0 to 10 do
+    if (i + 1) mod 4 <> 0 then
+      World.connect ps i (i + 1) (Particle.Spring (1500., 100.))
+  done;
+
+  for i = 0 to 7 do
+    World.connect ps i (i + 4) (Particle.Spring (150., 100.))
+  done;
     
-    (* connect particles with springs *)
-    World.connect ps 0 1 (Particle.Spring (100., 50.));
-    World.connect ps 1 2 (Particle.Spring (100., 50.));
-  
+   
   let step () =
     World.add_force ps (Force (Vec2.v 1. 0.)); (* wind ? *)
     World.integrate ps dt;
@@ -80,6 +94,8 @@ let () =
   
   let draw_fps () =
     ctx##.fillStyle := Js.string "black";
+    ctx##.textAlign := Js.string "left";
+    ctx##.textBaseline := Js.string "alphabetic";
     ctx##fillText
       (Js.string (Printf.sprintf "%d fps" !fps))
       (Js.float 10.) (Js.float 20.)

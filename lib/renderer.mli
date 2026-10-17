@@ -2,7 +2,7 @@ module type BACKEND = sig
   type ctx
   
   val clear: ctx -> unit
-  val circle: ctx -> x:float -> y:float -> radius:float -> unit
+  val circle: i:int -> ctx: ctx -> x:float -> y:float -> radius:float -> unit
   val line: ctx -> x1:float -> y1:float -> x2:float -> y2:float -> unit
 
 end
