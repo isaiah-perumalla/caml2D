@@ -1,8 +1,10 @@
 module type BACKEND = sig
   type ctx
+  type points
   
   val clear: ctx -> unit
-  val circle: i:int -> ctx: ctx -> x:float -> y:float -> radius:float -> unit
+  (* draws every point in [points] as a circle, labelled with its index *)
+  val circles: ctx -> points -> radius:float -> unit
   val line: ctx -> x1:float -> y1:float -> x2:float -> y2:float -> unit
 
 end
@@ -15,15 +17,16 @@ end
 
 module type SOURCE = sig
   type t
-  val iteri_positions : (int -> float -> float -> unit) -> t -> unit
+  type points
+  val positions : t -> points
 end
 
-module Make (B : BACKEND) (P : SOURCE) = struct
+module Make (B : BACKEND) (P : SOURCE with type points = B.points) = struct
   type ctx = B.ctx
   type particles = P.t
 
   let render ctx ps ~radius =
     B.clear ctx;
-    P.iteri_positions (fun i x y -> B.circle ~i ~ctx ~x ~y ~radius) ps
+    B.circles ctx (P.positions ps) ~radius
 end
 
