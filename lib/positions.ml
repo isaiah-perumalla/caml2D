@@ -80,17 +80,15 @@ module L = struct
     let integrate ps forces dt =
       (* verlet integration *)
       (* x' = 2x − prev + a·dt² *)
-      let pos_ = PoolV2.acquire ps.pool_v2 in
-      V2.scale_add ~target:pos_ ~a: !(ps.positions) ~scale_a: 2. ~b: !(ps.prev_positions) ~scale_b: (-1.);
-      let a_ = PoolV2.acquire ps.pool_v2 in
-      V2.scale_by ~target:a_ forces ps.inv_mass (dt *. dt);
-      let x' = !(ps.prev_positions) in
-      V2.add ~target:x' pos_ a_;
-      ps.prev_positions := !(ps.positions);
-      ps.positions := x';
-      PoolV2.release ps.pool_v2 a_;
-      PoolV2.release ps.pool_v2 pos_;
-
+       (* verlet: x' = 2x − prev + f·inv_mass·dt², computed in place into prev *)
+      let pos = !(ps.positions) and prev = !(ps.prev_positions) in
+      (* prev := 2x -prev *)
+      V2.scale_add ~target:prev ~a:pos ~scale_a: 2. ~b:prev ~scale_b: (-1.);
+      (* prev := prev *)
+      V2.acc_scale_by ~target:prev forces ps.inv_mass (dt *. dt);
+    
+      ps.prev_positions := pos;
+      ps.positions := prev;
   
 end
 

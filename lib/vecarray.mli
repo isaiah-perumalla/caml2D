@@ -34,8 +34,8 @@ module type MutableV2 = sig
   val fill : t -> float -> float -> unit
   val scale : target:t -> t -> float -> unit
    val add : target:t -> t -> t -> unit
-(* target := t * (m1.t * float) *)
-  val scale_by: target:t -> t -> M1.t -> float -> unit 
+(* target := target + (t * (m1.t * float)) *)
+  val acc_scale_by: target:t -> t -> M1.t -> float -> unit 
   (* a*scale_a + b*scale_b  *)
   val scale_add: target:t -> a:t -> scale_a:float -> b:t -> scale_b: float -> unit
   
