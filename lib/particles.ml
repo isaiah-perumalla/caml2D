@@ -182,8 +182,6 @@ module Make (W : WORLD) = struct
     apply_spring_forces ps;
     (* verlet integration *)
     (* x' = 2x − prev + a·dt² *)
-    let new_positions = Pool.acquire_2 ps.pool in
-    V2.scale ~target:new_positions !(ps.positions) 2.;
     let size = V2.length !(ps.positions) in
     for i = 0 to size - 1 do
       let posx = V2.getx !(ps.positions) i in

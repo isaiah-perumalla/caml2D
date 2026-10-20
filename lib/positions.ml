@@ -83,8 +83,7 @@ module L = struct
       let pos_ = PoolV2.acquire ps.pool_v2 in
       V2.scale_add ~target:pos_ ~a: !(ps.positions) ~scale_a: 2. ~b: !(ps.prev_positions) ~scale_b: (-1.);
       let a_ = PoolV2.acquire ps.pool_v2 in
-      V2.scale_by_v ~target:a_ forces ps.inv_mass;
-      V2.scale ~target:a_ a_ (dt *. dt);
+      V2.scale_by ~target:a_ forces ps.inv_mass (dt *. dt);
       let x' = !(ps.prev_positions) in
       V2.add ~target:x' pos_ a_;
       ps.prev_positions := !(ps.positions);

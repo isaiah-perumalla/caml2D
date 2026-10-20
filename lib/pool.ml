@@ -33,7 +33,6 @@ end = struct
         S.make p.size
     | v :: rest ->
         p.free <- rest;
-        S.zero v;
         v
 
   let release p v =
