@@ -1,10 +1,7 @@
-
 module FrameCounter = struct
-  type t = { mutable frames: int }
+  type t = { mutable frames : int }
 
-  let make initial_frames =
-    { frames = initial_frames; }
-
+  let make initial_frames = { frames = initial_frames }
   let incr fc = fc.frames <- fc.frames + 1
 
   let reset fc =

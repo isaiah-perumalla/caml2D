@@ -1,4 +1,3 @@
-
 type t = { x : float; y : float }
 
 val zero : t
@@ -11,4 +10,3 @@ val length : t -> float
 val normalize : t -> t
 val distance : t -> t -> float
 val distance_squared : t -> t -> float
-

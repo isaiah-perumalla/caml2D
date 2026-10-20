@@ -22,7 +22,9 @@ module HtmlCanvas (V : Vecarray.V2) = struct
   let label i =
     if i >= Array.length !labels then
       labels :=
-        Array.init (max (i + 1) (2 * Array.length !labels)) (fun j ->
+        Array.init
+          (max (i + 1) (2 * Array.length !labels))
+          (fun j ->
             if j < Array.length !labels then !labels.(j)
             else Js.string (string_of_int j));
     !labels.(i)
@@ -30,7 +32,8 @@ module HtmlCanvas (V : Vecarray.V2) = struct
   (* all circles go in one path, so the canvas fills and strokes once per
      frame; the labels are drawn in a second pass with the text state set once *)
   let circles (ctx : ctx) ps ~radius =
-    let r = Js.float radius and start = Js.float 0.
+    let r = Js.float radius
+    and start = Js.float 0.
     and stop = Js.float (2. *. Float.pi) in
     ctx##.fillStyle := white;
     ctx##beginPath;

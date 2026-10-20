@@ -2,7 +2,6 @@ type position = Position of Vec2.t
 type prior_position = PriorPosition of Vec2.t
 type force = Force of Vec2.t
 type spring = Spring of float * float
-
 type mass = Mass of float
 type t = { position : position; prior_position : prior_position; mass : mass }
 
@@ -12,7 +11,7 @@ let create pos ppos (Mass m as mass) =
   { position = pos; prior_position = ppos; mass }
 
 let position p = p.position
-let prior_position  p = p.prior_position
+let prior_position p = p.prior_position
 
 let inv_mass p =
   let (Mass m) = p.mass in

@@ -29,6 +29,9 @@ end)
 let raises_invalid_arg f =
   match f () with exception Invalid_argument _ -> true | _ -> false
 
+let raises_assert f =
+  match f () with exception Assert_failure _ -> true | _ -> false
+
 (* a different particle for each index, so layout mistakes show up *)
 let nth i =
   let k = float_of_int i in
@@ -37,18 +40,22 @@ let nth i =
 let same_particle a b =
   Particle.position a = Particle.position b
   && Particle.prior_position a = Particle.prior_position b
-  && Particle.mass a = Particle.mass b 
-  
+  && Particle.mass a = Particle.mass b
 
-  let () =
+let () =
   (* iter positions *)
-  let ps = W.init 3 (fun i -> particle (W.Config.top_left.x /. 2.0, float_of_int i *. 3.) (0., 0.)) in
+  let ps =
+    W.init 3 (fun i ->
+        particle (W.Config.top_left.x /. 2.0, float_of_int i *. 3.) (0., 0.))
+  in
   let calls = ref 0 in
-  W.iteri_positions (fun i x y ->
-    assert (x = W.Config.top_left.x /. 2.);
-    assert (y = float_of_int i *. 3.);
-    incr calls) ps;
-  
+  W.iteri_positions
+    (fun i x y ->
+      assert (x = W.Config.top_left.x /. 2.);
+      assert (y = float_of_int i *. 3.);
+      incr calls)
+    ps;
+
   assert (!calls = 3)
 
 let () =
@@ -82,11 +89,10 @@ let () =
 let () =
   (* out-of-range indices are rejected *)
   let ps = W.init 2 nth in
-  assert (raises_invalid_arg (fun () -> W.get ps (-1)));
-  assert (raises_invalid_arg (fun () -> W.get ps 2));
-  assert (raises_invalid_arg (fun () -> W.set ps (-1) (nth 0)));
-  assert (raises_invalid_arg (fun () -> W.set ps 2 (nth 0)))
-
+  assert (raises_assert (fun () -> W.get ps (-1)));
+  assert (raises_assert (fun () -> W.get ps 2));
+  assert (raises_assert (fun () -> W.set ps (-1) (nth 0)));
+  assert (raises_assert (fun () -> W.set ps 2 (nth 0)))
 
 let () =
   (* a particle with mass 0 is immovable: forces do not affect it *)
@@ -109,7 +115,7 @@ let () =
   (* no more forces applied everything should move a constnat velocity *)
   (* particle 0 should move at 2 units/step, particle 1 move 1 unit/step *)
   W.integrate ps 1.0;
-  
+
   assert (same_particle (W.get ps 0) (particle (5., 6.) (3., 4.)));
   assert (same_particle (W.get ps 1) (particle (2., 0.) (1., 0.)))
 

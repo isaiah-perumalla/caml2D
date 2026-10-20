@@ -1,5 +1,4 @@
 open Caml2d
-
 module V2 = Vecarray.Float32Vec2
 module Pool = Vecarray.Make (Vecarray.Float32Vec) (Vecarray.Float32Vec2)
 
@@ -31,3 +30,20 @@ let () =
   let v = Pool.acquire_2 pool in
   Pool.release_2 pool v;
   assert (raises_assert (fun () -> Pool.release_2 pool v))
+
+(* Pool *)
+
+module P = Caml2d.Pool.Make (Vecarray.Float32Vec2)
+
+let raises_failure f =
+  match f () with exception Failure _ -> true | _ -> false
+
+let () =
+  (* the pool hands out at most max_cap elements; a released element is
+     reused without counting against the cap *)
+  let p = P.create_pool ~size:3 ~capacity:2 in
+  let a = P.acquire p in
+  let _b = P.acquire p in
+  assert (raises_failure (fun () -> P.acquire p));
+  P.release p a;
+  assert (P.acquire p == a)
