@@ -16,7 +16,7 @@ module type Linear = sig
     unit
 
   val iteri_positions : (int -> float -> float -> unit) -> t -> unit
-  val integrate : t -> forces -> dt:float -> unit
+  val integrate : t -> forces -> float -> unit
 end
 
 module V2 = Vecarray.Float32Vec2
@@ -25,6 +25,8 @@ module PoolV1 = Pool.Make (V1)
 module PoolV2 = Pool.Make (V2)
 
 module L = struct
+  type forces = V2.t
+
   type t = {
     pool_v1 : PoolV1.t;
     pool_v2 : PoolV2.t;
@@ -34,7 +36,7 @@ module L = struct
   }
 
   let max_cap = 8
-
+  
   let init n =
     let pool_v1 = PoolV1.create_pool ~size:n ~capacity:max_cap in
     let pool_v2 = PoolV2.create_pool ~size:n ~capacity:max_cap in
@@ -68,6 +70,29 @@ module L = struct
        V1.get ps.inv_mass i
 
     let iteri_positions  f ps = V2.iteri f !(ps.positions) 
-      
+
+    let set ps i ~(position : Vec2.t) ~(prior_position : Vec2.t) ~inv_mass =
+      assert (i >= 0 && i < V2.length !(ps.positions));
+      V2.set !(ps.positions) i position.x position.y;
+      V2.set !(ps.prev_positions) i prior_position.x prior_position.y;
+      V1.set ps.inv_mass i inv_mass
+
+    let integrate ps forces dt =
+      (* verlet integration *)
+      (* x' = 2x − prev + a·dt² *)
+      let pos_ = PoolV2.acquire ps.pool_v2 in
+      V2.scale_add ~target:pos_ ~a: !(ps.positions) ~scale_a: 2. ~b: !(ps.prev_positions) ~scale_b: (-1.);
+      let a_ = PoolV2.acquire ps.pool_v2 in
+      V2.scale_by_v ~target:a_ forces ps.inv_mass;
+      V2.scale ~target:a_ a_ (dt *. dt);
+      let x' = !(ps.prev_positions) in
+      V2.add ~target:x' pos_ a_;
+      ps.prev_positions := !(ps.positions);
+      ps.positions := x';
+      PoolV2.release ps.pool_v2 a_;
+      PoolV2.release ps.pool_v2 pos_;
+
   
 end
+
+module Linear : Linear = L

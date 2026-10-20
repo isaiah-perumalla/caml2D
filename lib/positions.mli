@@ -16,5 +16,7 @@ module type Linear = sig
     unit
 
   val iteri_positions : (int -> float -> float -> unit) -> t -> unit
-  val integrate : t -> forces -> dt:float -> unit
+  val integrate : t -> forces -> float -> unit
 end
+
+module Linear : Linear
