@@ -1,6 +1,7 @@
 module type Linear = sig
   type t
   type forces = Vecarray.Float32Vec2.t
+  type accelerations = Vecarray.Float32Vec2.t
 
   val init : int -> t
   val get_prior_position : t -> int -> Vec2.t
@@ -16,7 +17,7 @@ module type Linear = sig
     unit
 
   val iteri_positions : (int -> float -> float -> unit) -> t -> unit
-  val integrate : t -> forces -> float -> unit
+  val integrate : t -> forces:forces -> float -> unit
 end
 
 module Linear : Linear
