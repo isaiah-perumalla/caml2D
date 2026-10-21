@@ -40,10 +40,9 @@ module L = struct
   let init n =
     let pool_v1 = PoolV1.create_pool ~size:n ~capacity:max_cap in
     let pool_v2 = PoolV2.create_pool ~size:n ~capacity:max_cap in
-    let positions = PoolV2.acquire pool_v2 in
-    let prev_positions = PoolV2.acquire pool_v2 in
-
-    let inv_mass = PoolV1.acquire pool_v1 in
+    let positions = V2.make n in
+    let prev_positions = V2.make n in
+    let inv_mass = V1.make n in
 
     {
       pool_v1;
@@ -84,7 +83,7 @@ module L = struct
       let pos = !(ps.positions) and prev = !(ps.prev_positions) in
       (* prev := 2x -prev *)
       V2.scale_add ~target:prev ~a:pos ~scale_a: 2. ~b:prev ~scale_b: (-1.);
-      (* prev := prev *)
+      (* prev := prev + (f x inv_mass) * dt²*)
       V2.acc_scale_by ~target:prev forces ps.inv_mass (dt *. dt);
     
       ps.prev_positions := pos;
