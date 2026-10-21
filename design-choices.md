@@ -11,6 +11,7 @@ Notes on how the simulation is structured and why. Sections marked
 | `Vecarray` | Flat typed-array vectors: `Float32Vec` (1D) and `Float32Vec2` (interleaved x, y), with whole-array operations |
 | `Pool` | Generic pool of fixed-size elements (`Pool.Make (S : SIZED)`) |
 | `Positions.Linear` | Verlet integrator for linear motion: positions, prior positions, inverse mass |
+| `Area` | Regions (boxes; circles planned) that add forces to the bodies inside them |
 | `Positions.Angular` | **(planned)** the same for rotation: angle, prior angle, inverse inertia |
 | `Rigid` | **(planned)** shapes (circles first) and their geometry |
 | `Collision` | **(planned)** detection and resolution, including walls |
@@ -33,7 +34,7 @@ inverse masses a `Float32Vec`, and so on.
 
 - **A pure integrator.** It owns positions, prior positions and inverse mass,
   and knows nothing about the world (no bounds, no shapes).
-- **Verlet:** `x' = 2x − prev + (f·inv_mass + g)·dt²`. Velocity is implicit in
+- **Verlet:** `x' = 2x − prev + f·inv_mass·dt²`. Velocity is implicit in
   `pos − prev`.
 - **In place, no scratch buffers.** The new position is written straight into
   the prior-positions buffer, then the two refs are swapped:
@@ -43,24 +44,58 @@ inverse masses a `Float32Vec`, and so on.
   Each element reads its own inputs before writing, so working in place is
   safe. This replaced an earlier version that took scratch buffers from a
   pool, and is about 40% faster (see benchmarks).
-- **Immovable bodies** have `inv_mass = 0`: the force term vanishes, and gravity
-  must be masked out for them.
-- **Gravity (planned): passed to `integrate`, not `init`.**
-  - Gravity is an external input to a step, like `forces` and `dt`, so
-    `Linear` keeps no world state. `Angular` will take torques the same way.
-  - Changing gravity at runtime, or testing with several values, is just a
-    different argument.
-  - It can't be folded into `forces` by the caller: the equivalent force is
-    `g / inv_mass`, undefined for immovable bodies.
-  - Planned as part of the accumulate pass, so it doesn't cost a third pass:
-    `prev += (f·m + g·[m ≠ 0])·dt²`.
-  - Not a functor over gravity: see "Functors and inlining" below.
+- **Immovable bodies** have `inv_mass = 0`, so every force on them is
+  multiplied by zero and they never move.
+- **Only forces, no accelerations.** `integrate : t -> forces:forces -> float
+  -> unit`. Mass-independent accelerations such as gravity are converted to
+  forces by whoever produces them: `f = a / inv_mass`, skipped when
+  `inv_mass = 0`. This was chosen over:
+  - an `accelerations` buffer passed to `integrate`, which would either be
+    masked by `inv_mass` inside `Linear` or require every caller to keep it
+    zero for immovable bodies (an extra pass, or an unchecked rule);
+  - a gravity parameter on `init`, which would put world state in the
+    integrator.
+
+  The cost is one division per affected body in the code that writes forces,
+  which therefore needs each body's `inv_mass`.
+- Not a functor over gravity or any other world constant: see "Functors and
+  inlining" below.
 - **Buffer access (planned):** expose `positions` and `prior_positions` as raw
   `Float32Vec2.t`. The renderer needs the whole positions buffer each frame,
   and collision resolution and walls write both buffers in bulk. Per-index
   getters return a fresh `Vec2.t` each call, which is too slow for that.
   Buffers are swapped by `integrate`, so callers must fetch them again after
-  each step rather than keep them.
+  each step rather than keep them. An `inv_masses` accessor would likewise let
+  force producers such as `Area` read inverse masses without going through
+  `get_inv_mass` per body.
+
+## `Area`
+
+A region of the world that adds forces to the bodies inside it.
+
+```ocaml
+type params = { forces : Vec2.t; drag_const : float; gravity : Vec2.t }
+type shape =
+  | Box of { top_left : Vec2.t; bottom_right : Vec2.t }
+  | Circular of { center : Vec2.t; radius : float }
+type t = { params : params; shape : shape }
+
+val acc_forces :
+  area:t -> pos:Positions.Linear.t -> target:Positions.Linear.forces -> unit
+```
+
+- **A variant per area is fine here**, unlike for bodies: there are only a few
+  areas, so one `match` per area per step costs nothing.
+- **"Inside" means the body's centre is inside.** y grows downwards, as on the
+  canvas, and edges count as inside.
+- **`acc_forces` accumulates** into `target`, so wind, springs and several
+  overlapping areas add up.
+- **Gravity is an acceleration**, applied as the force `gravity / inv_mass` so
+  bodies of any mass accelerate the same; immovable bodies get none.
+- **Not done yet:** `Circular` areas (currently no effect) and `drag_const`,
+  which needs velocity `(pos − prev) / dt`, so prior positions and `dt`.
+- **The step order** each frame: clear forces → areas add forces → springs,
+  if kept → `Linear.integrate` → collisions.
 
 ## `Rigid` and `Collision` (planned)
 
@@ -159,7 +194,7 @@ Before deleting `Particles`:
 - **Tests:** the wall, corner, sideways-floor and immovable tests in
   `test_caml2d.ml` move to `Rigid` / `Collision`.
 
-Suggested order: `Linear` gravity and buffer access → `Rigid.Circles` →
+Suggested order: `Linear` buffer access → `Rigid.Circles` →
 walls in `Collision` (port wall tests) → circle–circle → switch `web/` over
 and delete `Particles` → spatial grid.
 
@@ -168,6 +203,23 @@ and delete `Particles` → spatial grid.
 Measured with Node 18 on the release build (`dune build --profile release`),
 each case in its own Node process. Absolute numbers will differ in a browser;
 the ratios are the point.
+
+### How the benchmarks were run
+
+A throwaway harness, not in the repo: a copy of `lib/` plus one
+js_of_ocaml executable (`(modes js)`, `(libraries caml2d js_of_ocaml)`),
+built with `--profile release` and run with `node`. For each case it:
+
+1. builds the data (bodies on a grid, `inv_mass` 1);
+2. runs a tenth of the steps to warm up the JIT;
+3. times the remaining steps with `performance.now()`;
+4. reports ms per step and ns per body.
+
+Each case takes a name argument so it can run in its own Node process, so one
+case's JIT state can't affect another. When comparing two versions, the two
+builds were run alternately three times. Run-to-run variance on this machine
+(WSL) is 10–30%, so only differences larger than that are reported as real.
+A loop with identical JS in both builds was included as a noise baseline.
 
 ### Fewer passes over the arrays matter most
 
@@ -214,6 +266,46 @@ function larger and 40–50% slower in V8, though `particles.ml` itself hadn't
 changed. The call was dead code and removing it fixed the regression. Lesson:
 re-measure after refactors, and compare against the previous commit by
 alternating runs.
+
+### `Area.acc_forces`: match on the shape outside the loop
+
+ns per body, one box area, three alternating runs:
+
+| | Before, 10k | After, 10k | Before, 100k | After, 100k |
+|---|---|---|---|---|
+| All bodies inside | 41–53 | 22–24 | 40–46 | 28–35 |
+| Half inside | 26–33 | 16–25 | 26–35 | 18–20 |
+| None inside | 17–23 | 8–9 | 18–21 | 7–8 |
+
+- **Before:** `contains area.shape` returned a closure, called once per body.
+  js_of_ocaml can't inline a function chosen at run time, so every body paid
+  a generic call, even when none were inside.
+- **After:** `match area.shape` once, with one loop per shape and the bounds
+  in local floats. The test compiles to four comparisons in the loop, and the
+  force update is inlined too.
+- At 100k bodies an area covering everything now costs about 35–45% of a
+  `Linear.integrate` step, down from about 60%.
+- In the benchmark the whole call was inlined with the area's values folded
+  in as constants. Areas built at run time won't get that, so expect slightly
+  less. The "none inside" gain comes from removing the closure, which applies
+  either way.
+- **Next:** visit only bodies near the area via the planned spatial grid, so
+  cost scales with the bodies inside, not with all bodies.
+
+### Asserts: `-noassert` makes no measurable difference
+
+dune's release profile does not pass `-noassert`; asserts stay in the JS
+(confirmed by their `Assert_failure` locations in the output). Building with
+
+```
+(env (release (flags (:standard -noassert))))
+```
+
+removed them all, but `acc_forces` and `Linear.integrate` timings stayed
+within the noise baseline. An assert is a couple of integer comparisons with a
+branch that's never taken, which is cheap next to a closure call or a
+bounds-checked Bigarray access. Asserts are kept in every profile, and the
+assert-based tests stay valid.
 
 ### Pool
 
