@@ -4,9 +4,7 @@ module type Circles = sig
   val init: int -> t
   val set: t -> int -> position:Vec2.t -> prior_position:Vec2.t -> inv_mass:float -> radius:float -> unit
   val linear: t -> Positions.Linear.t
-  (* force accumulator, one entry per circle: filled before each step,
-     passed to [Positions.Linear.integrate], and zeroed by the caller *)
-  val forces: t -> Positions.Linear.forces
+  
   val iteri: (int -> x:float -> y:float -> radius:float -> unit) -> t -> unit 
 
 end
@@ -21,17 +19,16 @@ module V1 = Vecarray.Float32Vec
 module V2 = Vecarray.Float32Vec2
 
 module C = struct
-  type t = {radius:V1.t; linear:Positions.Linear.t; forces:V2.t}
+  type t = {radius:V1.t; linear:Positions.Linear.t; }
 
   let init n = 
     let l = Positions.Linear.init n in
     let radius = V1.make n in
-    {radius; linear = l; forces = V2.make n}
+    {radius; linear = l; }
 
 
   let linear t = t.linear
-  let forces t = t.forces
-
+  
   let set t i ~position ~prior_position ~inv_mass ~radius =
     Positions.Linear.set t.linear i ~position ~prior_position ~inv_mass;
     V1.set t.radius i radius

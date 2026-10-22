@@ -1,12 +1,12 @@
-(executable
- (name main)
+(executables
+ (names main circles)
  (modes js)
  (libraries caml2d js_of_ocaml)
  (preprocess
   (pps js_of_ocaml-ppx)))
 
-; copy the static files next to main.bc.js so _build/default/web is servable
+; copy the static files next to the .bc.js files so _build/default/web is servable
 
 (alias
  (name all)
- (deps index.html style.css))
+ (deps index.html circles.html style.css))

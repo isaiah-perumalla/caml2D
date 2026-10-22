@@ -3,6 +3,7 @@ type params = {forces:Vec2.t; drag_const: float; gravity: Vec2.t }
 type shape = 
   |Box of {top_left: Vec2.t; bottom_right: Vec2.t;}
   |Circular of  {center: Vec2.t; radius: float}
+  |Everywhere
 
 type t = {params:params; shape:shape}
 module V2 = Vecarray.Float32Vec2
@@ -24,3 +25,5 @@ let acc_forces ~(area : t) ~(pos : Positions.Linear.t) ~(target : Positions.Line
         (fun i x y -> if x0 <= x && x <= x1 && y0 <= y && y <= y1 then add_g i)
         pos
   | Circular _ -> () (* TODO: not applied yet *)
+  | Everywhere -> Positions.Linear.iteri_positions
+        (fun i _ _ -> add_g i) pos

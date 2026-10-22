@@ -10,6 +10,7 @@ type params = {
 type shape =
   | Box of { top_left : Vec2.t; bottom_right : Vec2.t }
   | Circular of { center : Vec2.t; radius : float }  (* not applied yet *)
+  | Everywhere
 
 type t = { params : params; shape : shape }
 
