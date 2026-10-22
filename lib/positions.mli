@@ -2,10 +2,12 @@ module type Linear = sig
   type t
   type forces = Vecarray.Float32Vec2.t
   type accelerations = Vecarray.Float32Vec2.t
+  type positions = Vecarray.Float32Vec2.t
 
   val init : int -> t
-  val get_prior_position : t -> int -> Vec2.t
-  val get_position : t -> int -> Vec2.t
+  val positions: t -> positions
+  val prior_positions: t -> positions
+
   val get_inv_mass : t -> int -> float
 
   val set :

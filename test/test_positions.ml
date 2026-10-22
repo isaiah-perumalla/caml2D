@@ -4,9 +4,12 @@ module V2 = Vecarray.Float32Vec2
 
 (* values exact in float32, compared with [=] *)
 
+(* fetches the buffers on every call: integrate swaps them, so a buffer
+   taken before a step would be stale after it *)
 let check ps i (px, py) (qx, qy) =
-  assert (L.get_position ps i = Vec2.v px py);
-  assert (L.get_prior_position ps i = Vec2.v qx qy)
+  let p = L.positions ps and q = L.prior_positions ps in
+  assert (V2.getx p i = px && V2.gety p i = py);
+  assert (V2.getx q i = qx && V2.gety q i = qy)
 
 let () =
   (* integrate moves every particle by velocity * dt, plus force / mass * dt^2 *)

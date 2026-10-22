@@ -2,11 +2,13 @@ module type Linear = sig
   type t
   type forces = Vecarray.Float32Vec2.t
   type accelerations = Vecarray.Float32Vec2.t
+  type positions = Vecarray.Float32Vec2.t
 
 
   val init : int -> t
-  val get_prior_position : t -> int -> Vec2.t
-  val get_position : t -> int -> Vec2.t
+  val positions: t -> positions
+  val prior_positions: t -> positions
+
   val get_inv_mass : t -> int -> float
 
   val set :
@@ -29,6 +31,7 @@ module PoolV2 = Pool.Make (V2)
 module L = struct
   type forces = V2.t
   type accelerations = V2.t
+  type positions = Vecarray.Float32Vec2.t
 
   type t = {
     pool_v1 : PoolV1.t;
@@ -55,17 +58,9 @@ module L = struct
       inv_mass;
     }
 
-    let get_position ps i = 
-      assert (i >= 0 && i < V2.length !(ps.positions));
-      let posx = V2.getx !(ps.positions) i in
-      let posy = V2.gety !(ps.positions) i in
-      Vec2.v posx posy
-
-    let get_prior_position ps i = 
-      assert (i >= 0 && i < V2.length !(ps.prev_positions));
-      let posx = V2.getx !(ps.prev_positions) i in
-      let posy = V2.gety !(ps.prev_positions) i in
-      Vec2.v posx posy
+    let positions ps  = !(ps.positions)
+      
+    let prior_positions ps = !(ps.prev_positions)
 
     let get_inv_mass ps i =
        assert (i >= 0 && i < V1.length ps.inv_mass);
