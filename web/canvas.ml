@@ -12,7 +12,7 @@ let draw_fps ctx fps =
   ctx##.fillStyle := black;
   ctx##.textAlign := Js.string "left";
   ctx##.textBaseline := Js.string "alphabetic";
-  ctx##fillText (Js.string (Printf.sprintf "%d fps" !fps)) (Js.float 10.) (Js.float 20.)
+  ctx##fillText (Js.string (Printf.sprintf "%d fps" fps)) (Js.float 10.) (Js.float 20.)
 
 (* every circle in one path, so the canvas fills and strokes once a frame *)
 let draw ctx circles =

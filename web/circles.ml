@@ -72,7 +72,8 @@ let () =
     Dom_html.handler (fun ev ->
         let p = Vec2.v (Js.to_float ev##.clientX) (Js.to_float ev##.clientY) in
         let radius = 10. +. Random.float 20. in
-        (match A.add_circle arena ~position:p ~prior_position:p ~inv_mass:1. ~radius with
+        let inv_mass = 1. /. radius in
+        (match A.add_circle arena ~position:p ~prior_position:p ~inv_mass:inv_mass ~radius with
         | Some _ -> ()
         | None -> Console.console##log (Js.string "arena full"));
         Js._false);
@@ -97,7 +98,7 @@ let () =
 
     Canvas.draw_areas ctx !areas;
     Canvas.draw ctx (A.circles arena);
-    Canvas.draw_fps ctx fps;
+    Canvas.draw_fps ctx !fps;
     request (loop !acc now)
   and request f =
     let callback = Js.wrap_callback (fun now -> f (Js.to_float now)) in
