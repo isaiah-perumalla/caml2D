@@ -5,55 +5,11 @@ open Caml2d
 let dt = 1. /. 120. (* fixed physics step; Verlet needs a constant dt *)
 let max_dt = 0.05 (* seconds; caps the catch-up after a background tab *)
 let max_circles = 500
-let white = Js.string "white"
-let black = Js.string "black"
+
 let one_second = Js.float 1000.
-(* area outline colours, used in turn as areas are added *)
-let area_colours =
-  Array.map Js.string [| "steelblue"; "darkorange"; "seagreen"; "crimson"; "purple"; "goldenrod" |]
-
-let draw_fps ctx fps =
-  ctx##.fillStyle := black;
-  ctx##.textAlign := Js.string "left";
-  ctx##.textBaseline := Js.string "alphabetic";
-  ctx##fillText (Js.string (Printf.sprintf "%d fps" !fps)) (Js.float 10.) (Js.float 20.)
-
-(* every circle in one path, so the canvas fills and strokes once a frame *)
-let draw ctx circles =
-  
-  ctx##.fillStyle := white;
-  ctx##.strokeStyle := black;
-  ctx##beginPath;
-  Rigid.Circles.iteri
-    (fun _ ~x ~y ~radius ->
-      (* move to the arc's start point, otherwise the path joins each
-          circle to the previous one with a line *)
-      ctx##moveTo (Js.float (x +. radius)) (Js.float y);
-      ctx##arc (Js.float x) (Js.float y) (Js.float radius) (Js.float 0.)
-        (Js.float (2. *. Float.pi))
-        Js._false)
-    circles;
-    ctx##fill;
-    ctx##stroke
 
 
-let draw_areas ctx areas =
-    List.iter
-      (fun ((area : Area.t), colour) ->
-        ctx##.strokeStyle := colour;
-        match area.shape with
-        | Box { top_left; bottom_right } ->
-            ctx##strokeRect (Js.float top_left.x) (Js.float top_left.y)
-              (Js.float (bottom_right.x -. top_left.x))
-              (Js.float (bottom_right.y -. top_left.y))
-        | Circular { center; radius } ->
-            ctx##beginPath;
-            ctx##arc (Js.float center.x) (Js.float center.y) (Js.float radius)
-              (Js.float 0.) (Js.float (2. *. Float.pi)) Js._false;
-            ctx##stroke
-        | Everywhere -> ())
-      areas
-  
+
 
 let () =
   let canvas =
@@ -81,6 +37,7 @@ let () =
   let areas = ref [] in
   let add_area area =
     A.add_area arena area;
+    let area_colours = Canvas.area_colours in
     let colour = area_colours.(List.length !areas mod Array.length area_colours) in
     areas := (area, colour) :: !areas
   in
@@ -138,9 +95,9 @@ let () =
     Utils.FrameCounter.incr frame_counter;
     ctx##clearRect (Js.float 0.) (Js.float 0.) (Js.float width) (Js.float height);
 
-    draw_areas ctx !areas;
-    draw ctx (A.circles arena);
-    draw_fps ctx fps;
+    Canvas.draw_areas ctx !areas;
+    Canvas.draw ctx (A.circles arena);
+    Canvas.draw_fps ctx fps;
     request (loop !acc now)
   and request f =
     let callback = Js.wrap_callback (fun now -> f (Js.to_float now)) in
