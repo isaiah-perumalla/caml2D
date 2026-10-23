@@ -34,8 +34,11 @@ module type MutableV2 = sig
   val fill : t -> float -> float -> unit
   val scale : target:t -> t -> float -> unit
   val add : target:t -> t -> t -> unit
-  val acc_scale_by: target:t -> t -> M1.t -> float -> unit
-  val scale_add: target:t -> a:t -> scale_a:float -> b:t -> scale_b: float -> unit
+  val acc_scale_by : target:t -> t -> M1.t -> float -> unit
+
+  val scale_add :
+    target:t -> a:t -> scale_a:float -> b:t -> scale_b:float -> unit
+
   val update_add : t -> float -> float -> unit
 
   (* val magnitude: target: M1.t -> t -> unit *)
@@ -126,22 +129,22 @@ module Float32Vec2 : MutableV2 with module M1 = Float32Vec = struct
       target.{base + 1} <- scale *. t.{base + 1}
     done
 
-  let acc_scale_by ~target a scale k  =
+  let acc_scale_by ~target a scale k =
     assert (length target = M1.length scale);
-    for i = 0 to (length target) - 1 do
-      let s = k *. (M1.get scale i) in
+    for i = 0 to length target - 1 do
+      let s = k *. M1.get scale i in
       let base = i * dim in
       target.{base} <- target.{base} +. (s *. a.{base});
-      target.{base + 1} <- target.{base + 1} +. (s *. a.{base + 1});
+      target.{base + 1} <- target.{base + 1} +. (s *. a.{base + 1})
     done
 
-  let scale_add ~target  ~a  ~scale_a  ~b  ~scale_b =
+  let scale_add ~target ~a ~scale_a ~b ~scale_b =
     assert (length target = length a);
     assert (length target = length b);
-    for i = 0 to (length target) - 1 do
+    for i = 0 to length target - 1 do
       let base = i * dim in
       target.{base} <- (scale_a *. a.{base}) +. (scale_b *. b.{base});
-      target.{base + 1} <- (scale_a *. a.{base + 1}) +. (scale_b *. b.{base + 1});
+      target.{base + 1} <- (scale_a *. a.{base + 1}) +. (scale_b *. b.{base + 1})
     done
 
   let zero t = Bigarray.Array1.fill t 0.

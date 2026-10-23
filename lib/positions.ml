@@ -4,11 +4,9 @@ module type Linear = sig
   type accelerations = Vecarray.Float32Vec2.t
   type positions = Vecarray.Float32Vec2.t
 
-
   val init : int -> t
-  val positions: t -> positions
-  val prior_positions: t -> positions
-
+  val positions : t -> positions
+  val prior_positions : t -> positions
   val get_inv_mass : t -> int -> float
 
   val set :
@@ -42,7 +40,7 @@ module L = struct
   }
 
   let max_cap = 8
-  
+
   let init n =
     let pool_v1 = PoolV1.create_pool ~size:n ~capacity:max_cap in
     let pool_v2 = PoolV2.create_pool ~size:n ~capacity:max_cap in
@@ -58,35 +56,33 @@ module L = struct
       inv_mass;
     }
 
-    let positions ps  = !(ps.positions)
-      
-    let prior_positions ps = !(ps.prev_positions)
+  let positions ps = !(ps.positions)
+  let prior_positions ps = !(ps.prev_positions)
 
-    let get_inv_mass ps i =
-       assert (i >= 0 && i < V1.length ps.inv_mass);
-       V1.get ps.inv_mass i
+  let get_inv_mass ps i =
+    assert (i >= 0 && i < V1.length ps.inv_mass);
+    V1.get ps.inv_mass i
 
-    let iteri_positions  f ps = V2.iteri f !(ps.positions) 
+  let iteri_positions f ps = V2.iteri f !(ps.positions)
 
-    let set ps i ~(position : Vec2.t) ~(prior_position : Vec2.t) ~inv_mass =
-      assert (i >= 0 && i < V2.length !(ps.positions));
-      V2.set !(ps.positions) i position.x position.y;
-      V2.set !(ps.prev_positions) i prior_position.x prior_position.y;
-      V1.set ps.inv_mass i inv_mass
+  let set ps i ~(position : Vec2.t) ~(prior_position : Vec2.t) ~inv_mass =
+    assert (i >= 0 && i < V2.length !(ps.positions));
+    V2.set !(ps.positions) i position.x position.y;
+    V2.set !(ps.prev_positions) i prior_position.x prior_position.y;
+    V1.set ps.inv_mass i inv_mass
 
-    let integrate ps ~forces dt =
-      (* verlet integration *)
-      (* x' = 2x − prev + (f·inv_m + a)·dt²*)
-  
-       (* verlet: x' = 2x − prev + f·inv_mass·dt², computed in place into prev *)
-      let pos = !(ps.positions) and prev = !(ps.prev_positions) in
-      (* prev := 2x -prev *)
-      V2.scale_add ~target:prev ~a:pos ~scale_a: 2. ~b:prev ~scale_b: (-1.);
-      (* prev := prev + (f x inv_mass) * dt²*)
-      V2.acc_scale_by ~target:prev forces ps.inv_mass (dt *. dt);
-      ps.prev_positions := pos;
-      ps.positions := prev;
-  
+  let integrate ps ~forces dt =
+    (* verlet integration *)
+    (* x' = 2x − prev + (f·inv_m + a)·dt²*)
+
+    (* verlet: x' = 2x − prev + f·inv_mass·dt², computed in place into prev *)
+    let pos = !(ps.positions) and prev = !(ps.prev_positions) in
+    (* prev := 2x -prev *)
+    V2.scale_add ~target:prev ~a:pos ~scale_a:2. ~b:prev ~scale_b:(-1.);
+    (* prev := prev + (f x inv_mass) * dt²*)
+    V2.acc_scale_by ~target:prev forces ps.inv_mass (dt *. dt);
+    ps.prev_positions := pos;
+    ps.positions := prev
 end
 
 module Linear : Linear = L

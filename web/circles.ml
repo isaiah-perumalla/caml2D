@@ -5,11 +5,7 @@ open Caml2d
 let dt = 1. /. 120. (* fixed physics step; Verlet needs a constant dt *)
 let max_dt = 0.05 (* seconds; caps the catch-up after a background tab *)
 let max_circles = 500
-
 let one_second = Js.float 1000.
-
-
-
 
 let () =
   let canvas =
@@ -38,7 +34,9 @@ let () =
   let add_area area =
     A.add_area arena area;
     let area_colours = Canvas.area_colours in
-    let colour = area_colours.(List.length !areas mod Array.length area_colours) in
+    let colour =
+      area_colours.(List.length !areas mod Array.length area_colours)
+    in
     areas := (area, colour) :: !areas
   in
 
@@ -48,22 +46,41 @@ let () =
     Area.
       {
         shape = Everywhere;
-        params = { forces = Vec2.zero; drag_const = 0.; gravity = Vec2.v 0. 980. };
+        params =
+          { forces = Vec2.zero; drag_const = 0.; gravity = Vec2.v 0. 980. };
       };
   add_area
     Area.
       {
-        shape = Box { top_left = Vec2.v 0. (height -. 300.); 
-                      bottom_right = Vec2.v (width -. (width /. 3.) ) height };
-        params = { forces = Vec2.zero; drag_const = 0.; gravity = Vec2.v 300. (-3000.) };
+        shape =
+          Box
+            {
+              top_left = Vec2.v 0. (height -. 300.);
+              bottom_right = Vec2.v (width -. (width /. 3.)) height;
+            };
+        params =
+          {
+            forces = Vec2.zero;
+            drag_const = 0.;
+            gravity = Vec2.v 300. (-3000.);
+          };
       };
 
-   add_area
+  add_area
     Area.
       {
-        shape = Box { top_left = Vec2.v (width -. (width /. 3.) ) (height -. 300.); 
-                      bottom_right = Vec2.v width  height };
-        params = { forces = Vec2.zero; drag_const = 0.; gravity = Vec2.v (-300.) (-3000.) };
+        shape =
+          Box
+            {
+              top_left = Vec2.v (width -. (width /. 3.)) (height -. 300.);
+              bottom_right = Vec2.v width height;
+            };
+        params =
+          {
+            forces = Vec2.zero;
+            drag_const = 0.;
+            gravity = Vec2.v (-300.) (-3000.);
+          };
       };
 
   (* a click adds a circle at rest at the click point; clientX/Y match canvas
@@ -73,7 +90,9 @@ let () =
         let p = Vec2.v (Js.to_float ev##.clientX) (Js.to_float ev##.clientY) in
         let radius = 10. +. Random.float 20. in
         let inv_mass = 1. /. radius in
-        (match A.add_circle arena ~position:p ~prior_position:p ~inv_mass:inv_mass ~radius with
+        (match
+           A.add_circle arena ~position:p ~prior_position:p ~inv_mass ~radius
+         with
         | Some _ -> ()
         | None -> Console.console##log (Js.string "arena full"));
         Js._false);
@@ -86,7 +105,6 @@ let () =
             fps := Utils.FrameCounter.reset frame_counter))
        one_second);
 
- 
   let rec loop acc last now =
     let acc = ref (acc +. Float.min ((now -. last) /. 1000.) max_dt) in
     while !acc >= dt do
@@ -94,7 +112,8 @@ let () =
       acc := !acc -. dt
     done;
     Utils.FrameCounter.incr frame_counter;
-    ctx##clearRect (Js.float 0.) (Js.float 0.) (Js.float width) (Js.float height);
+    ctx##clearRect (Js.float 0.) (Js.float 0.) (Js.float width)
+      (Js.float height);
 
     Canvas.draw_areas ctx !areas;
     Canvas.draw ctx (A.circles arena);

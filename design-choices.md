@@ -307,6 +307,58 @@ branch that's never taken, which is cheap next to a closure call or a
 bounds-checked Bigarray access. Asserts are kept in every profile, and the
 assert-based tests stay valid.
 
+### Rejected: packing two floats into one `int64` (`Pair.FloatPair`)
+
+The idea was to store a pair of floats as one 64-bit value: each float
+narrowed to float32 with `Int32.bits_of_float`, the two 32-bit patterns
+combined with shifts and masks.
+
+Benchmarked against a float record (`{ first : float; second : float }`) and
+a tuple, 1 million pairs, three runs each, ns per pair:
+
+| Release JS (Node 18) | make + read | store in array | read stored |
+|---|---|---|---|
+| `int64` packing | 99–109 | 366–389 | 42–52 |
+| float record | 53–67 | 286–314 | 32–36 |
+| tuple | 45–48 | 270–403 | 30–31 |
+
+| Native | make + read | store in array | read stored |
+|---|---|---|---|
+| `int64` packing | 18–23 | 69–85 | 17–22 |
+| float record | 10–13 | 59–68 | 15–18 |
+| tuple | 11–12 | 150–177 | 16–17 |
+
+- **Slower everywhere:** about 1.7–2× slower to make and read than a float
+  record, in JS and native builds.
+- **Why, in JS:** js_of_ocaml emulates `Int64` as an object with three 24-bit
+  parts, so every value is an allocation and every shift, mask and float
+  conversion is a runtime call. JavaScript's BigInt is not used for it.
+- **Why, natively:** an `int64` is still boxed when stored, and the bit
+  conversions are extra work a record doesn't need.
+- **Precision:** each float is narrowed to float32, so values like `0.1` come
+  back rounded.
+- **No allocation saved:** the packing, the record and the tuple all allocate
+  one heap value per pair.
+- **Tuples natively:** worst at storing (150–177 ns), because each float in a
+  tuple is boxed separately; a float record keeps both unboxed in one block.
+  In JS, where every float is a plain number, the difference disappears.
+
+**BigInt was considered and not tried.** js_of_ocaml has no typed binding for
+it, so it would need either `Js.Unsafe` (untyped, and JS-only, so the native
+tests couldn't use it) or `external` declarations with a JavaScript stub file
+plus matching C stubs for native builds, i.e. the logic written twice. BigInts
+are heap objects too, so it would still allocate per pair, and crossing between
+OCaml and JS costs a call. Expected to beat the emulated `Int64` but not a
+float record; not measured.
+
+**What to use instead:**
+
+- For a pair value: a float record. Fastest or close to it everywhere, full
+  precision, no bit manipulation.
+- For many pairs without per-pair allocation (e.g. collision contacts): typed
+  arrays plus a count, such as `Vecarray.Float32Vec2` or one array per field.
+  They work the same in native and JS builds.
+
 ### Pool
 
 - `Pool.Make` hands out fixed-size elements up to a capacity. `acquire` doesn't

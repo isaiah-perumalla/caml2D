@@ -30,7 +30,13 @@ let () =
      get nothing *)
   let pos =
     bodies
-      [ ((5., 5.), 1.); ((50., 5.), 1.); ((-5., 5.), 1.); ((5., 50.), 1.); ((5., -5.), 1.) ]
+      [
+        ((5., 5.), 1.);
+        ((50., 5.), 1.);
+        ((-5., 5.), 1.);
+        ((5., 50.), 1.);
+        ((5., -5.), 1.);
+      ]
   in
   let target = V2.make 5 in
   Area.acc_forces ~area:(box ~forces:(Vec2.v 1. 2.) ()) ~pos ~target;
@@ -41,7 +47,10 @@ let () =
 
 let () =
   (* the box includes its edges and corners *)
-  let pos = bodies [ ((0., 0.), 1.); ((10., 10.), 1.); ((0., 10.), 1.); ((10., 5.), 1.) ] in
+  let pos =
+    bodies
+      [ ((0., 0.), 1.); ((10., 10.), 1.); ((0., 10.), 1.); ((10., 5.), 1.) ]
+  in
   let target = V2.make 4 in
   Area.acc_forces ~area:(box ~forces:(Vec2.v 1. 0.) ()) ~pos ~target;
   for i = 0 to 3 do

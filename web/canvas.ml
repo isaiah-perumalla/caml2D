@@ -3,20 +3,24 @@ open Caml2d
 
 let white = Js.string "white"
 let black = Js.string "black"
+
 (* area outline colours, used in turn as areas are added *)
 let area_colours =
-  Array.map Js.string [| "steelblue"; "darkorange"; "seagreen"; "crimson"; "purple"; "goldenrod" |]
-
+  Array.map Js.string
+    [|
+      "steelblue"; "darkorange"; "seagreen"; "crimson"; "purple"; "goldenrod";
+    |]
 
 let draw_fps ctx fps =
   ctx##.fillStyle := black;
   ctx##.textAlign := Js.string "left";
   ctx##.textBaseline := Js.string "alphabetic";
-  ctx##fillText (Js.string (Printf.sprintf "%d fps" fps)) (Js.float 10.) (Js.float 20.)
+  ctx##fillText
+    (Js.string (Printf.sprintf "%d fps" fps))
+    (Js.float 10.) (Js.float 20.)
 
 (* every circle in one path, so the canvas fills and strokes once a frame *)
 let draw ctx circles =
-  
   ctx##.fillStyle := white;
   ctx##.strokeStyle := black;
   ctx##beginPath;
@@ -29,27 +33,27 @@ let draw ctx circles =
         (Js.float (2. *. Float.pi))
         Js._false)
     circles;
-    ctx##fill;
-    ctx##stroke
-
+  ctx##fill;
+  ctx##stroke
 
 let draw_areas ctx areas =
-      List.iter
-      (fun ((area : Area.t), colour) ->
-        ctx##.strokeStyle := colour;
-        match area.shape with
-        | Box { top_left; bottom_right } ->
-            ctx##strokeRect (Js.float top_left.x) (Js.float top_left.y)
-              (Js.float (bottom_right.x -. top_left.x))
-              (Js.float (bottom_right.y -. top_left.y))
-        | Circular { center; radius } ->
-            ctx##beginPath;
-            ctx##arc (Js.float center.x) (Js.float center.y) (Js.float radius)
-              (Js.float 0.) (Js.float (2. *. Float.pi)) Js._false;
-            ctx##stroke
-        | Everywhere -> ())
-      areas
-  
+  List.iter
+    (fun ((area : Area.t), colour) ->
+      ctx##.strokeStyle := colour;
+      match area.shape with
+      | Box { top_left; bottom_right } ->
+          ctx##strokeRect (Js.float top_left.x) (Js.float top_left.y)
+            (Js.float (bottom_right.x -. top_left.x))
+            (Js.float (bottom_right.y -. top_left.y))
+      | Circular { center; radius } ->
+          ctx##beginPath;
+          ctx##arc (Js.float center.x) (Js.float center.y) (Js.float radius)
+            (Js.float 0.)
+            (Js.float (2. *. Float.pi))
+            Js._false;
+          ctx##stroke
+      | Everywhere -> ())
+    areas
 
 module HtmlCanvas (V : Vecarray.V2) = struct
   type ctx = Dom_html.canvasRenderingContext2D Js.t

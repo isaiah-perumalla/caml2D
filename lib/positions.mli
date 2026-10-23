@@ -5,9 +5,8 @@ module type Linear = sig
   type positions = Vecarray.Float32Vec2.t
 
   val init : int -> t
-  val positions: t -> positions
-  val prior_positions: t -> positions
-
+  val positions : t -> positions
+  val prior_positions : t -> positions
   val get_inv_mass : t -> int -> float
 
   val set :
