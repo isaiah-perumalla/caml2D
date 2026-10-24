@@ -120,7 +120,7 @@ let () =
     let circles = A.circles arena in
     Collision.PairwiseContacts.detect circles ~target:collisions;
     Canvas.draw_areas ctx !areas;
-    Canvas.draw ctx (circles);
+    Canvas.draw ctx circles;
     Canvas.draw_collisions ctx circles collisions;
     Canvas.draw_fps ctx !fps;
 

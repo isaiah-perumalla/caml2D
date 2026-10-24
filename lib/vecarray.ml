@@ -1,3 +1,13 @@
+module type BITVEC = sig
+  type t
+
+  val make : int -> t
+  val expand : t -> int -> t
+  val isset : t -> int -> bool
+  val clear : t -> int -> unit
+  val set : t -> int -> unit
+end
+
 module type V1 = sig
   type t
 
@@ -10,7 +20,7 @@ module type MutableV1 = sig
   include V1
 
   val make : int -> t
-  val expand: t -> int -> t
+  val expand : t -> int -> t
   val set : t -> int -> float -> unit
   val scale : target:t -> t -> float -> unit
   val add : target:t -> t -> t -> unit
@@ -31,7 +41,7 @@ module type MutableV2 = sig
   module M1 : MutableV1
 
   val make : int -> t
-  val expand: t -> int -> t
+  val expand : t -> int -> t
   val set : t -> int -> float -> float -> unit
   val fill : t -> float -> float -> unit
   val distance_squared : t -> int -> int -> float
@@ -63,6 +73,48 @@ module type S = sig
 end
 
 type buffer = (float, Bigarray.float32_elt, Bigarray.c_layout) Bigarray.Array1.t
+type int32s = (int32, Bigarray.int32_elt, Bigarray.c_layout) Bigarray.Array1.t
+
+module BitVec : BITVEC = struct
+  type t = int32s
+
+  let make n =
+    let size = (n + 31) / 32 in
+    let bits = Bigarray.Array1.create Bigarray.int32 Bigarray.c_layout size in
+
+    Bigarray.Array1.fill bits 0l;
+    bits
+
+  let capacity t = 32 * Bigarray.Array1.dim t
+
+  let expand t n =
+    let bits = make n in
+    let len = Int.min (Bigarray.Array1.dim t) (Bigarray.Array1.dim bits) in
+    Bigarray.Array1.blit
+      (Bigarray.Array1.sub t 0 len)
+      (Bigarray.Array1.sub bits 0 len);
+    bits
+
+  let isset t i =
+    let slot = i / 32 in
+    let index = i mod 32 in
+    let v = t.{slot} in
+    Int32.logand v (Int32.shift_left 1l index) <> 0l
+
+  let clear t i =
+    let slot = i / 32 in
+    let index = i mod 32 in
+    let v = t.{slot} in
+    let v' = Int32.logand v (Int32.lognot (Int32.shift_left 1l index)) in
+    t.{slot} <- v'
+
+  let set t i =
+    let slot = i / 32 in
+    let index = i mod 32 in
+    let v = t.{slot} in
+    let v' = Int32.logor v (Int32.shift_left 1l index) in
+    t.{slot} <- v'
+end
 
 module Float32Vec : MutableV1 = struct
   type t = buffer
@@ -92,9 +144,11 @@ module Float32Vec : MutableV1 = struct
     let v = make n in
     (* copies the slots both buffers have, in one call *)
     let len = Int.min (length t) n in
-    Bigarray.Array1.blit (Bigarray.Array1.sub t 0 len) (Bigarray.Array1.sub v 0 len);
+    Bigarray.Array1.blit
+      (Bigarray.Array1.sub t 0 len)
+      (Bigarray.Array1.sub v 0 len);
     v
-  
+
   let zero t = Bigarray.Array1.fill t 0.
 
   let iteri f t =
@@ -135,19 +189,18 @@ module Float32Vec2 : MutableV2 with module M1 = Float32Vec = struct
     let v = make n in
     (* copies the slots both buffers have, in one call *)
     let len = dim * Int.min (length t) n in
-    Bigarray.Array1.blit (Bigarray.Array1.sub t 0 len) (Bigarray.Array1.sub v 0 len);
+    Bigarray.Array1.blit
+      (Bigarray.Array1.sub t 0 len)
+      (Bigarray.Array1.sub v 0 len);
     v
-  
 
   let distance_squared t a b =
     let ax = getx t a in
     let ay = gety t a in
-    
+
     let bx = getx t b in
     let by = gety t b in
-    ((bx -. ax) *. (bx -. ax)) +. ((by -. ay) *. (by -. ay)) 
-
-     
+    ((bx -. ax) *. (bx -. ax)) +. ((by -. ay) *. (by -. ay))
 
   let scale ~target t scale =
     assert (length target = length t);

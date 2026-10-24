@@ -7,11 +7,8 @@ module type PAIRS = sig
   val get_a : t -> int -> elt
   val get_b : t -> int -> elt
   val set : t -> int -> a:elt -> b:elt -> unit
-  val expand: t -> int -> t
-
+  val expand : t -> int -> t
 end
-
-
 
 type float32s =
   (float, Bigarray.float32_elt, Bigarray.c_layout) Bigarray.Array1.t
@@ -45,10 +42,8 @@ module Int32Pairs : PAIRS with type elt = int = struct
     let n = make new_size in
     (* copies the slots both buffers have, in one call *)
     let len = dim * Int.min (length t) new_size in
-    Bigarray.Array1.blit (Bigarray.Array1.sub t 0 len) (Bigarray.Array1.sub n 0 len);
+    Bigarray.Array1.blit
+      (Bigarray.Array1.sub t 0 len)
+      (Bigarray.Array1.sub n 0 len);
     n
-  end
-
-
-
-
+end

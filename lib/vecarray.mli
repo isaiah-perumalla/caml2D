@@ -1,3 +1,13 @@
+module type BITVEC = sig
+  type t
+
+  val make : int -> t
+  val expand : t -> int -> t
+  val isset : t -> int -> bool
+  val clear : t -> int -> unit
+  val set : t -> int -> unit
+end
+
 module type V1 = sig
   type t
 
@@ -10,7 +20,7 @@ module type MutableV1 = sig
   include V1
 
   val make : int -> t
-  val expand: t -> int -> t
+  val expand : t -> int -> t
   val set : t -> int -> float -> unit
   val scale : target:t -> t -> float -> unit
   val add : target:t -> t -> t -> unit
@@ -31,14 +41,13 @@ module type MutableV2 = sig
   module M1 : MutableV1
 
   val make : int -> t
-  val expand: t -> int -> t (*create a new time with new size*)
+  val expand : t -> int -> t (*create a new time with new size*)
   val set : t -> int -> float -> float -> unit
   val fill : t -> float -> float -> unit
   val distance_squared : t -> int -> int -> float
   val scale : target:t -> t -> float -> unit
   val add : target:t -> t -> t -> unit
 
-  
   (* target := target + (t * (m1.t * float)) *)
   val acc_scale_by : target:t -> t -> M1.t -> float -> unit
 
@@ -68,6 +77,7 @@ end
 
 module Float32Vec : MutableV1
 module Float32Vec2 : MutableV2 with module M1 = Float32Vec
+module BitVec : BITVEC
 
 module Make (M1 : MutableV1) (M2 : MutableV2 with module M1 = M1) :
   S with module M1 = M1 and module M2 = M2

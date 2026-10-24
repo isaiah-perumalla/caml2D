@@ -40,7 +40,8 @@ let draw ctx circles =
    indices, so it stays the same while the pair keeps touching instead of
    changing every frame *)
 let collision_colours =
-  Array.init 12 (fun k -> Js.string (Printf.sprintf "hsl(%d, 80%%, 60%%)" (k * 30)))
+  Array.init 12 (fun k ->
+      Js.string (Printf.sprintf "hsl(%d, 80%%, 60%%)" (k * 30)))
 
 (* fills both circles of each colliding pair with that pair's colour; drawn
    after [draw], so the colours aren't painted over. A circle in several pairs

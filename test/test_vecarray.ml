@@ -47,3 +47,54 @@ let () =
   assert (raises_failure (fun () -> P.acquire p));
   P.release p a;
   assert (P.acquire p == a)
+
+(* BitVec *)
+
+module B = Vecarray.BitVec
+
+(* the bits in [lo, hi] that are set, in order *)
+let set_bits b lo hi =
+  List.filter (B.isset b) (List.init (hi - lo + 1) (( + ) lo))
+
+let () =
+  (* a fresh bit vector has nothing set, including bits in its last, partly
+     used word *)
+  let b = B.make 40 in
+  assert (set_bits b 0 39 = [])
+
+let () =
+  (* set and isset across the word boundary, including bit 31 (the sign bit
+     of the first int32 word); neighbours stay clear *)
+  let b = B.make 40 in
+  List.iter (B.set b) [ 0; 31; 32; 39 ];
+  assert (set_bits b 0 39 = [ 0; 31; 32; 39 ]);
+  (* setting a bit twice leaves it set *)
+  B.set b 31;
+  assert (set_bits b 0 39 = [ 0; 31; 32; 39 ])
+
+let () =
+  (* clear turns off only its own bit, and clearing a clear bit is harmless *)
+  let b = B.make 40 in
+  List.iter (B.set b) [ 30; 31; 32 ];
+  B.clear b 31;
+  assert (set_bits b 0 39 = [ 30; 32 ]);
+  B.clear b 31;
+  B.clear b 5;
+  assert (set_bits b 0 39 = [ 30; 32 ])
+
+let () =
+  (* expand to more bits keeps the set bits, and the new bits start clear *)
+  let b = B.make 40 in
+  List.iter (B.set b) [ 1; 33; 39 ];
+  let g = B.expand b 100 in
+  assert (set_bits g 0 99 = [ 1; 33; 39 ]);
+  (* the new bits can be used *)
+  B.set g 99;
+  assert (B.isset g 99)
+
+let () =
+  (* expand to fewer bits keeps the set bits that still fit *)
+  let b = B.make 100 in
+  List.iter (B.set b) [ 2; 31; 70 ];
+  let s = B.expand b 32 in
+  assert (set_bits s 0 31 = [ 2; 31 ])
