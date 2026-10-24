@@ -6,6 +6,9 @@ module type BITVEC = sig
   val isset : t -> int -> bool
   val clear : t -> int -> unit
   val set : t -> int -> unit
+
+  (* index of the highest set bit, or -1 if no bit is set *)
+  val last_set_index : t -> int
 end
 
 module type V1 = sig
@@ -114,6 +117,24 @@ module BitVec : BITVEC = struct
     let v = t.{slot} in
     let v' = Int32.logor v (Int32.shift_left 1l index) in
     t.{slot} <- v'
+
+  (* scans words from the last one down, skipping empty words, then finds the
+     highest set bit in the first non-empty one *)
+  let last_set_index t =
+    
+    let rec word w =
+      if w < 0 then -1
+      else
+        let v = t.{w} in
+        if v = 0l then word (w - 1)
+        else
+          let rec bit b =
+            if Int32.logand v (Int32.shift_left 1l b) <> 0l then b
+            else bit (b - 1)
+          in
+          (w * 32) + bit 31
+    in
+    word (Bigarray.Array1.dim t - 1)
 end
 
 module Float32Vec : MutableV1 = struct

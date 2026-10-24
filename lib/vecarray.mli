@@ -6,6 +6,9 @@ module type BITVEC = sig
   val isset : t -> int -> bool
   val clear : t -> int -> unit
   val set : t -> int -> unit
+
+  (* index of the highest set bit, or -1 if no bit is set *)
+  val last_set_index : t -> int
 end
 
 module type V1 = sig
