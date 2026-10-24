@@ -10,6 +10,7 @@ module type MutableV1 = sig
   include V1
 
   val make : int -> t
+  val expand: t -> int -> t
   val set : t -> int -> float -> unit
   val scale : target:t -> t -> float -> unit
   val add : target:t -> t -> t -> unit
@@ -30,8 +31,10 @@ module type MutableV2 = sig
   module M1 : MutableV1
 
   val make : int -> t
+  val expand: t -> int -> t
   val set : t -> int -> float -> float -> unit
   val fill : t -> float -> float -> unit
+  val distance_squared : t -> int -> int -> float
   val scale : target:t -> t -> float -> unit
   val add : target:t -> t -> t -> unit
   val acc_scale_by : target:t -> t -> M1.t -> float -> unit
@@ -85,6 +88,13 @@ module Float32Vec : MutableV1 = struct
     Bigarray.Array1.fill v 0.;
     v
 
+  let expand t n =
+    let v = make n in
+    (* copies the slots both buffers have, in one call *)
+    let len = Int.min (length t) n in
+    Bigarray.Array1.blit (Bigarray.Array1.sub t 0 len) (Bigarray.Array1.sub v 0 len);
+    v
+  
   let zero t = Bigarray.Array1.fill t 0.
 
   let iteri f t =
@@ -120,6 +130,24 @@ module Float32Vec2 : MutableV2 with module M1 = Float32Vec = struct
     let base = i * dim in
     t.{base} <- x;
     t.{base + 1} <- y
+
+  let expand t n =
+    let v = make n in
+    (* copies the slots both buffers have, in one call *)
+    let len = dim * Int.min (length t) n in
+    Bigarray.Array1.blit (Bigarray.Array1.sub t 0 len) (Bigarray.Array1.sub v 0 len);
+    v
+  
+
+  let distance_squared t a b =
+    let ax = getx t a in
+    let ay = gety t a in
+    
+    let bx = getx t b in
+    let by = gety t b in
+    ((bx -. ax) *. (bx -. ax)) +. ((by -. ay) *. (by -. ay)) 
+
+     
 
   let scale ~target t scale =
     assert (length target = length t);

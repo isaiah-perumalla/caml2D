@@ -36,6 +36,40 @@ let draw ctx circles =
   ctx##fill;
   ctx##stroke
 
+(* fill colours for colliding pairs; a pair's colour comes from its two
+   indices, so it stays the same while the pair keeps touching instead of
+   changing every frame *)
+let collision_colours =
+  Array.init 12 (fun k -> Js.string (Printf.sprintf "hsl(%d, 80%%, 60%%)" (k * 30)))
+
+(* fills both circles of each colliding pair with that pair's colour; drawn
+   after [draw], so the colours aren't painted over. A circle in several pairs
+   ends up with the colour of the last one drawn *)
+let draw_collisions ctx circles contacts =
+  let module C = Collision.PairwiseContacts in
+  let module V2 = Vecarray.Float32Vec2 in
+  let positions = Positions.Linear.positions (Rigid.Circles.linear circles) in
+  let fill_circle i =
+    let x = V2.getx positions i and y = V2.gety positions i in
+    let radius = Rigid.Circles.radius circles i in
+    ctx##beginPath;
+    ctx##arc (Js.float x) (Js.float y) (Js.float radius) (Js.float 0.)
+      (Js.float (2. *. Float.pi))
+      Js._false;
+    ctx##fill;
+    ctx##stroke
+  in
+  ctx##.strokeStyle := black;
+  for k = 0 to C.length contacts - 1 do
+    let a = C.a contacts ~i:k and b = C.b contacts ~i:k in
+    let colour =
+      collision_colours.(((a * 31) + b) mod Array.length collision_colours)
+    in
+    ctx##.fillStyle := colour;
+    fill_circle a;
+    fill_circle b
+  done
+
 let draw_areas ctx areas =
   List.iter
     (fun ((area : Area.t), colour) ->

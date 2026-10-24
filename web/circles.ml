@@ -105,6 +105,8 @@ let () =
             fps := Utils.FrameCounter.reset frame_counter))
        one_second);
 
+  let collisions = Collision.PairwiseContacts.create max_circles in
+
   let rec loop acc last now =
     let acc = ref (acc +. Float.min ((now -. last) /. 1000.) max_dt) in
     while !acc >= dt do
@@ -115,9 +117,13 @@ let () =
     ctx##clearRect (Js.float 0.) (Js.float 0.) (Js.float width)
       (Js.float height);
 
+    let circles = A.circles arena in
+    Collision.PairwiseContacts.detect circles ~target:collisions;
     Canvas.draw_areas ctx !areas;
-    Canvas.draw ctx (A.circles arena);
+    Canvas.draw ctx (circles);
+    Canvas.draw_collisions ctx circles collisions;
     Canvas.draw_fps ctx !fps;
+
     request (loop !acc now)
   and request f =
     let callback = Js.wrap_callback (fun now -> f (Js.to_float now)) in

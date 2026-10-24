@@ -12,6 +12,7 @@ module type Circles = sig
     radius:float ->
     unit
 
+  val radius: t -> int -> float
   val linear : t -> Positions.Linear.t
 
   (* calls [f] for each circle with a radius greater than 0; a radius of 0

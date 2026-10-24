@@ -1,3 +1,3 @@
 (tests
- (names test_caml2d test_vecarray test_positions test_area test_world)
+ (names test_caml2d test_vecarray test_positions test_area test_world test_pair)
  (libraries caml2d))

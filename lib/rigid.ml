@@ -12,6 +12,7 @@ module type Circles = sig
     radius:float ->
     unit
 
+  val radius: t -> int -> float
   val linear : t -> Positions.Linear.t
   val iteri : (int -> x:float -> y:float -> radius:float -> unit) -> t -> unit
 end
@@ -27,6 +28,9 @@ module C = struct
     let radius = V1.make n in
     { radius; linear = l }
 
+  
+  let radius t i = V1.get t.radius i 
+  
   let linear t = t.linear
 
   let set t i ~position ~prior_position ~inv_mass ~radius =
