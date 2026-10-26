@@ -55,6 +55,7 @@ module type MutableV2 = sig
   val scale_add :
     target:t -> a:t -> scale_a:float -> b:t -> scale_b:float -> unit
 
+  val update_add_i: t -> int -> float -> float -> unit
   val update_add : t -> float -> float -> unit
 
   (* val magnitude: target: M1.t -> t -> unit *)
@@ -102,7 +103,8 @@ module BitVec : BITVEC = struct
     let slot = i / 32 in
     let index = i mod 32 in
     let v = t.{slot} in
-    Int32.logand v (Int32.shift_left 1l index) <> 0l
+    let word = Int32.logand v (Int32.shift_left 1l index) in
+    Int32.to_int word <> 0
 
   let clear t i =
     let slot = i / 32 in
@@ -118,21 +120,29 @@ module BitVec : BITVEC = struct
     let v' = Int32.logor v (Int32.shift_left 1l index) in
     t.{slot} <- v'
 
-  (* scans words from the last one down, skipping empty words, then finds the
-     highest set bit in the first non-empty one *)
+  
+  let rec first_zero_bit (word:int32) b =
+    assert((Int32.to_int word) <> -1);
+    let word' = Int32.logand word (Int32.shift_left 1l b) in
+    if (Int32.to_int word') = 0 then b else first_zero_bit word (b + 1) 
+
+
+  (* most significant bit in word , starting at bit b *)
+  let rec msb (word:int32) b = 
+      assert ((Int32.to_int word) <> 0);
+      let word' = Int32.logand word (Int32.shift_left 1l b) in
+      if  Int32.to_int word' <> 0 then b
+      else msb word (b - 1)
+  
   let last_set_index t =
     
     let rec word w =
       if w < 0 then -1
       else
         let v = t.{w} in
-        if v = 0l then word (w - 1)
+        if (Int32.to_int v) = 0 then word (w - 1)
         else
-          let rec bit b =
-            if Int32.logand v (Int32.shift_left 1l b) <> 0l then b
-            else bit (b - 1)
-          in
-          (w * 32) + bit 31
+          (w * 32) + (msb v 31)
     in
     word (Bigarray.Array1.dim t - 1)
 end
@@ -258,6 +268,11 @@ module Float32Vec2 : MutableV2 with module M1 = Float32Vec = struct
       t.{base + 1} <- y
     done
 
+  let update_add_i t i x y = 
+    let base = i * dim in
+      t.{base} <- t.{base} +. x;
+      t.{base + 1} <- t.{base + 1} +. y
+  
   let update_add t x y =
     for i = 0 to length t - 1 do
       let base = i * dim in

@@ -58,6 +58,7 @@ module type MutableV2 = sig
   val scale_add :
     target:t -> a:t -> scale_a:float -> b:t -> scale_b:float -> unit
 
+  val update_add_i: t -> int -> float -> float -> unit
   val update_add : t -> float -> float -> unit
 
   (* val magnitude: target: M1.t -> t -> unit *)

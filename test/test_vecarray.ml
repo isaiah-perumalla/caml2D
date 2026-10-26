@@ -98,3 +98,36 @@ let () =
   List.iter (B.set b) [ 2; 31; 70 ];
   let s = B.expand b 32 in
   assert (set_bits s 0 31 = [ 2; 31 ])
+
+let () =
+  (* last_set_index is -1 when nothing is set, including for an empty vector *)
+  assert (B.last_set_index (B.make 100) = -1);
+  assert (B.last_set_index (B.make 0) = -1)
+
+let () =
+  (* last_set_index follows the highest set bit as bits are set, across word
+     boundaries and including bit 31, the sign bit of the first word *)
+  let b = B.make 100 in
+  B.set b 0;
+  assert (B.last_set_index b = 0);
+  B.set b 31;
+  assert (B.last_set_index b = 31);
+  B.set b 32;
+  assert (B.last_set_index b = 32);
+  B.set b 99;
+  assert (B.last_set_index b = 99);
+  (* setting a lower bit doesn't change it *)
+  B.set b 50;
+  assert (B.last_set_index b = 99)
+
+let () =
+  (* last_set_index drops when the highest bit is cleared, skipping any words
+     that are now empty *)
+  let b = B.make 100 in
+  List.iter (B.set b) [ 3; 40; 99 ];
+  B.clear b 99;
+  assert (B.last_set_index b = 40);
+  B.clear b 40;
+  assert (B.last_set_index b = 3);
+  B.clear b 3;
+  assert (B.last_set_index b = -1)
