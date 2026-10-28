@@ -1,4 +1,4 @@
-module type Contacts = sig
+module Contacts : sig
   type t
 
   val create : int -> t
@@ -10,9 +10,21 @@ module type Contacts = sig
   (* normal is from a to b *)
   val norm_x : t -> int -> float
   val norm_y : t -> int -> float
-
-  (* find contacts from circle.t fill target with contact info return number of of contacts *)
-  val detect : Rigid.Circles.t -> target:t -> unit
+  
 end
 
-module PairwiseContacts : Contacts
+module type DETECT = sig
+  val circles : Rigid.Circles.t -> target:Contacts.t -> unit
+
+end
+
+module Resolver : sig
+
+     (* moves overlapping bodies apart and applies the bounce, updating
+     positions and prior positions in place; call after integrate *)
+  val apply : Contacts.t -> Positions.Linear.t -> dt:float -> e:float -> unit
+end
+  
+
+
+module PairwiseContacts : DETECT

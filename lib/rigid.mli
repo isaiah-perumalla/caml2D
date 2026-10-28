@@ -15,6 +15,7 @@ module type Circles = sig
   val exists : t -> int -> bool
   val radius : t -> int -> float
   val linear : t -> Positions.Linear.t
+ 
 
   (* calls [f] for each circle with a radius greater than 0; a radius of 0
      marks an unused slot, which is skipped *)

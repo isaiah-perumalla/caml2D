@@ -1,29 +1,15 @@
-module type Contacts = sig
-  type t
-
-  val create : int -> t
-  val length : t -> int
-  val depth : t -> int -> float
-  val a : t -> i:int -> int
-  val b : t -> i:int -> int
-  val norm_x : t -> int -> float
-  val norm_y : t -> int -> float
-
-  (* find contacts from circle.t fill target with contact info return number of of contacts *)
-  val detect : Rigid.Circles.t -> target:t -> unit
-end
 
 module V2 = Vecarray.Float32Vec2
 module V1 = Vecarray.Float32Vec
 module IntPairs = Pair.Int32Pairs
 
-module PairwiseContacts : Contacts = struct
+module Contacts  = struct
   type t = {
     mutable relations : IntPairs.t;
     mutable depths : V1.t;
     mutable normals : V2.t;
     mutable count : int;
-    positions_corr: V2.t
+    positions_corr : V2.t;
   }
 
   let create n =
@@ -33,8 +19,9 @@ module PairwiseContacts : Contacts = struct
     let positions_corr = V2.make n in
     { relations; depths; normals; count = 0; positions_corr }
 
+  let count t = t.count 
+
   let capacity t = IntPairs.length t.relations
-  
   let length t = t.count
   let a t ~i = IntPairs.get_a t.relations i
   let b t ~i = IntPairs.get_b t.relations i
@@ -50,58 +37,123 @@ module PairwiseContacts : Contacts = struct
       t.normals <- V2.expand t.normals (cap * 2)
     end
 
-  
-  let reset t = 
+  let reset t =
     t.count <- 0;
-    V2.zero t.positions_corr 
+    V2.zero t.positions_corr
 
-  let detect c ~target =
+end
+
+module type DETECT = sig
+  val circles : Rigid.Circles.t -> target:Contacts.t -> unit
+end
+
+module PairwiseContacts : DETECT = struct
+  
+  let circles c ~target =
     let linear = Rigid.Circles.linear c in
     let positions = Positions.Linear.positions linear in
     let size = V2.length positions in
-    reset target;
+    Contacts.reset target;
 
-    let inv_mass a = Positions.Linear.get_inv_mass linear a in 
-        
     for i = 0 to size - 1 do
       if Rigid.Circles.exists c i then begin
         let radiusi = Rigid.Circles.radius c i in
         for j = i + 1 to size - 1 do
           if Rigid.Circles.exists c j then begin
             let index = target.count in
-            
+
             let dsquared = V2.distance_squared positions i j in
             let radiusj = Rigid.Circles.radius c j in
             let sum_r = radiusj +. radiusi in
-            let wi = inv_mass i and wj = inv_mass j in
-            let w = wi +. wj in
-            if w > 0.0 && radiusj > 0.0 && radiusi > 0.0 && dsquared < sum_r *. sum_r then begin
-              check_capacity target index;
+
+            if radiusj > 0.0 && radiusi > 0.0 && dsquared < sum_r *. sum_r then begin
+              Contacts.check_capacity target index;
               let d = Float.sqrt dsquared in
               IntPairs.set target.relations index ~a:i ~b:j;
               target.count <- index + 1;
-              
+
               V1.set target.depths index (sum_r -. d);
               let dx = V2.getx positions j -. V2.getx positions i
               and dy = V2.gety positions j -. V2.gety positions i in
-              let normx = (dx /. d) and normy = (dy /. d) in
-              (if d > 0.0 then V2.set target.normals index normx normy
-              else V2.set target.normals index 1. 0.);
-              (* correction along the normal *)
-              let normx = V2.getx target.normals index in
-              let normy = V2.gety target.normals index in
-              let d' = (sum_r -. d) in
-              let w' = 1. /. w in
-              let icorrx = (-1.) *. wi *. d' *. w' *. normx in
-              let icorry = (-1.) *. wi *. d' *. w' *. normy in
-              let jcorrx = wj *. d' *. w' *. normx in
-              let jcorry = wj *. d' *. w' *. normy in 
-              V2.update_add_i target.positions_corr i icorrx icorry;
-              V2.update_add_i target.positions_corr j jcorrx jcorry;
-
+              let normx = dx /. d and normy = dy /. d in
+              if d > 0.0 then V2.set target.normals index normx normy
+              else V2.set target.normals index 1. 0.
             end
           end
         done
+      end
+    done
+  
+  end
+  
+
+module Resolver = struct
+  let apply t linear ~dt ~e =
+   
+    let curr_positions = Positions.Linear.positions linear in
+    let prev_positions = Positions.Linear.prior_positions linear in
+    
+    let e = 0.8 in 
+    (* correction along the normal *)
+    
+    let inv_mass a = Positions.Linear.get_inv_mass linear a in
+    
+    let velx i = 
+      let px = V2.getx (curr_positions) i and px' =  V2.getx (prev_positions) i in
+      (px -. px') /. dt
+
+    in
+    
+    let vely i = 
+      let py = V2.gety (curr_positions) i and py' =  V2.gety (prev_positions) i in
+      (py -. py') /. dt
+    in
+
+    for index = 0 to (Contacts.count t) - 1 do
+      let i = IntPairs.get_a t.relations index
+      and j = IntPairs.get_b t.relations index in
+      let wi = inv_mass i and wj = inv_mass j in
+       
+      let w = wi +. wj in
+      if w > 0. then begin
+        (* two objs with infinite mass ignore*)
+        let normx = V2.getx t.normals index in
+        let normy = V2.gety t.normals index in
+        
+        let w' = 1. /. w in
+        
+        let d = V1.get t.depths index in
+       
+       
+        (*collision depth*)
+        
+        let icorrx = -1. *. wi *. d *. w' *. normx in
+        let icorry = -1. *. wi *. d *. w' *. normy in
+        let jcorrx = wj *. d *. w' *. normx in
+        let jcorry = wj *. d *. w' *. normy in
+        let veljx = (velx j) and veljy = (vely j) in
+        let velix = (velx i) and veliy = (vely i) in
+        
+        (* update after velocity is computed *)
+        V2.update_add_i curr_positions i icorrx icorry;
+        V2.update_add_i curr_positions j jcorrx jcorry;
+
+       
+        let rel_vel = ((veljx -. velix) *. normx) +. (( veljy -. veliy ) *. normy) in
+        let impulse = (-1.) *. (1. +. e) *. rel_vel *. w' in
+        if rel_vel < 0. then begin
+          (* update velocities *)
+          let velix' = velix -. impulse *. wi *. normx  and veliy' = veliy -.  impulse *. wi *. normy  in
+          let veljx' = veljx +. impulse *. wj *. normx and veljy' = veljy +.  impulse *. wj *. normy in
+          V2.update_add_i prev_positions i (-. (velix' -. velix) *. dt) (-. (veliy' -. veliy) *. dt);
+          V2.update_add_i prev_positions j (-. (veljx' -. veljx) *. dt) (-. (veljy' -. veljy) *. dt);
+          
+        end;
+        (* independent of rel_vel *)
+        (* add corrections to prev-positon to keep velocity stable *)
+        V2.update_add_i prev_positions i icorrx icorry;
+        V2.update_add_i prev_positions j jcorrx jcorry;
+      
       end
     done
 end

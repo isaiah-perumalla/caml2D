@@ -15,6 +15,7 @@ module type Circles = sig
   val exists : t -> int -> bool
   val radius : t -> int -> float
   val linear : t -> Positions.Linear.t
+ 
   val iteri : (int -> x:float -> y:float -> radius:float -> unit) -> t -> unit
 end
 
@@ -39,6 +40,8 @@ module C = struct
     Positions.Linear.set t.linear i ~position ~prior_position ~inv_mass;
     V1.set t.radius i radius;
     BitVec.set t.used i
+
+  
 
   let iteri f t =
     let positions = Positions.Linear.positions t.linear in

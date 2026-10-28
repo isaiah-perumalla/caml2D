@@ -5,5 +5,6 @@
   test_positions
   test_area
   test_world
-  test_pair)
+  test_pair
+  test_collision)
  (libraries caml2d))

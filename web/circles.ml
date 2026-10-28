@@ -2,6 +2,12 @@
 open Js_of_ocaml
 open Caml2d
 
+module V2 = Vecarray.Float32Vec2
+module Detect = Collision.PairwiseContacts 
+
+module Resolver = Collision.Resolver
+
+
 let dt = 1. /. 120. (* fixed physics step; Verlet needs a constant dt *)
 let max_dt = 0.05 (* seconds; caps the catch-up after a background tab *)
 let max_circles = 500
@@ -89,7 +95,7 @@ let () =
     Dom_html.handler (fun ev ->
         let p = Vec2.v (Js.to_float ev##.clientX) (Js.to_float ev##.clientY) in
         let radius = 10. +. Random.float 20. in
-        let inv_mass = 1. /. radius in
+        let inv_mass = 1. /. (radius *. 2.) in
         (match
            A.add_circle arena ~position:p ~prior_position:p ~inv_mass ~radius
          with
@@ -105,12 +111,16 @@ let () =
             fps := Utils.FrameCounter.reset frame_counter))
        one_second);
 
-  let collisions = Collision.PairwiseContacts.create max_circles in
-
+  let collisions = Collision.Contacts.create max_circles in
+  
+ 
   let rec loop acc last now =
     let acc = ref (acc +. Float.min ((now -. last) /. 1000.) max_dt) in
     while !acc >= dt do
+      let circles = A.circles arena in
       A.step arena dt;
+      Detect.circles circles ~target:collisions;
+      Resolver.apply collisions (Rigid.Circles.linear circles) ~dt:dt ~e:0.8;
       acc := !acc -. dt
     done;
     Utils.FrameCounter.incr frame_counter;
@@ -118,10 +128,9 @@ let () =
       (Js.float height);
 
     let circles = A.circles arena in
-    Collision.PairwiseContacts.detect circles ~target:collisions;
+    
     Canvas.draw_areas ctx !areas;
     Canvas.draw ctx circles;
-    Canvas.draw_collisions ctx circles collisions;
     Canvas.draw_fps ctx !fps;
 
     request (loop !acc now)

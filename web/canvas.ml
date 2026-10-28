@@ -3,12 +3,20 @@ open Caml2d
 
 let white = Js.string "white"
 let black = Js.string "black"
+module Detect = Collision.PairwiseContacts
+module Contacts = Collision.Contacts
+module V2 = Vecarray.Float32Vec2
 
 (* area outline colours, used in turn as areas are added *)
 let area_colours =
   Array.map Js.string
     [|
       "steelblue"; "darkorange"; "seagreen"; "crimson"; "purple"; "goldenrod";
+    |]
+
+let circle_colours = Array.map Js.string
+    [|
+      "steelblue"; "darkorange"; "red";  "green"; "black";
     |]
 
 let draw_fps ctx fps =
@@ -47,8 +55,7 @@ let collision_colours =
    after [draw], so the colours aren't painted over. A circle in several pairs
    ends up with the colour of the last one drawn *)
 let draw_collisions ctx circles contacts =
-  let module C = Collision.PairwiseContacts in
-  let module V2 = Vecarray.Float32Vec2 in
+  
   let positions = Positions.Linear.positions (Rigid.Circles.linear circles) in
   let fill_circle i =
     let x = V2.getx positions i and y = V2.gety positions i in
@@ -61,8 +68,8 @@ let draw_collisions ctx circles contacts =
     ctx##stroke
   in
   ctx##.strokeStyle := black;
-  for k = 0 to C.length contacts - 1 do
-    let a = C.a contacts ~i:k and b = C.b contacts ~i:k in
+  for k = 0 to Contacts.length contacts - 1 do
+    let a = Contacts.a contacts ~i:k and b = Contacts.b contacts ~i:k in
     let colour =
       collision_colours.(((a * 31) + b) mod Array.length collision_colours)
     in
