@@ -19,6 +19,18 @@ let circle_colours = Array.map Js.string
       "steelblue"; "darkorange"; "red";  "green"; "black";
     |]
 
+(* circles are made with radius 10 + [0, 20) (see circles.ml); that range is
+   split into equal bands, one per colour, so the largest circles are black *)
+let min_radius = 10.
+let max_radius = 30.
+
+let colour_index radius =
+  let n = Array.length circle_colours in
+  let band = (max_radius -. min_radius) /. float_of_int n in
+  let k = int_of_float ((radius -. min_radius) /. band) in
+  (* radii outside [min_radius, max_radius) use the first or last colour *)
+  Int.max 0 (Int.min (n - 1) k)
+
 let draw_fps ctx fps =
   ctx##.fillStyle := black;
   ctx##.textAlign := Js.string "left";
@@ -27,22 +39,28 @@ let draw_fps ctx fps =
     (Js.string (Printf.sprintf "%d fps" fps))
     (Js.float 10.) (Js.float 20.)
 
-(* every circle in one path, so the canvas fills and strokes once a frame *)
+(* circles coloured by radius: one path per colour, so the canvas fills and
+   strokes once per colour each frame rather than once per circle *)
 let draw ctx circles =
-  ctx##.fillStyle := white;
   ctx##.strokeStyle := black;
-  ctx##beginPath;
-  Rigid.Circles.iteri
-    (fun _ ~x ~y ~radius ->
-      (* move to the arc's start point, otherwise the path joins each
-          circle to the previous one with a line *)
-      ctx##moveTo (Js.float (x +. radius)) (Js.float y);
-      ctx##arc (Js.float x) (Js.float y) (Js.float radius) (Js.float 0.)
-        (Js.float (2. *. Float.pi))
-        Js._false)
-    circles;
-  ctx##fill;
-  ctx##stroke
+  Array.iteri
+    (fun k colour ->
+      ctx##.fillStyle := colour;
+      ctx##beginPath;
+      Rigid.Circles.iteri
+        (fun _ ~x ~y ~radius ->
+          if colour_index radius = k then begin
+            (* move to the arc's start point, otherwise the path joins each
+               circle to the previous one with a line *)
+            ctx##moveTo (Js.float (x +. radius)) (Js.float y);
+            ctx##arc (Js.float x) (Js.float y) (Js.float radius) (Js.float 0.)
+              (Js.float (2. *. Float.pi))
+              Js._false
+          end)
+        circles;
+      ctx##fill;
+      ctx##stroke)
+    circle_colours
 
 (* fill colours for colliding pairs; a pair's colour comes from its two
    indices, so it stays the same while the pair keeps touching instead of
@@ -84,12 +102,12 @@ let draw_areas ctx areas =
       ctx##.strokeStyle := colour;
       match area.shape with
       | Box { top_left; bottom_right } ->
-          ctx##strokeRect (Js.float top_left.x) (Js.float top_left.y)
-            (Js.float (bottom_right.x -. top_left.x))
-            (Js.float (bottom_right.y -. top_left.y))
+          ctx##strokeRect (Js.float (Vec2.x top_left)) (Js.float (Vec2.y top_left))
+            (Js.float ((Vec2.x bottom_right) -. (Vec2.x top_left)))
+            (Js.float ((Vec2.y bottom_right) -. (Vec2.y top_left)))
       | Circular { center; radius } ->
           ctx##beginPath;
-          ctx##arc (Js.float center.x) (Js.float center.y) (Js.float radius)
+          ctx##arc (Js.float (Vec2.x center)) (Js.float (Vec2.y center)) (Js.float radius)
             (Js.float 0.)
             (Js.float (2. *. Float.pi))
             Js._false;

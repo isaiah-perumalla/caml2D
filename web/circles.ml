@@ -89,6 +89,22 @@ let () =
           };
       };
 
+  add_area
+    Area.
+      {
+        shape =
+          Circular
+            {
+              center = Vec2.v (width -. (width /. 2.)) (height -. 500.);
+              radius = 200.;
+            };
+        params =
+          {
+            forces = Vec2.zero;
+            drag_const = 0.;
+            gravity = Vec2.v 0. (-1500.);
+          };
+      };
   (* a click adds a circle at rest at the click point; clientX/Y match canvas
      coordinates because the canvas fills the window from its top-left *)
   canvas##.onclick :=
@@ -114,8 +130,15 @@ let () =
   let collisions = Collision.Contacts.create max_circles in
   
  
-  let rec loop acc last now =
-    let acc = ref (acc +. Float.min ((now -. last) /. 1000.) max_dt) in
+  (* frame-loop state, kept across frames so nothing is allocated per frame *)
+  let acc = ref 0. and last = ref Float.nan in
+
+  let rec on_frame (now : Js.number_t) =
+    let now = Js.to_float now in
+    (* first frame: no elapsed time yet *)
+    if Float.is_nan !last then last := now;
+    acc := !acc +. Float.min ((now -. !last) /. 1000.) max_dt;
+    last := now;
     while !acc >= dt do
       let circles = A.circles arena in
       A.step arena dt;
@@ -132,10 +155,8 @@ let () =
     Canvas.draw_areas ctx !areas;
     Canvas.draw ctx circles;
     Canvas.draw_fps ctx !fps;
-
-    request (loop !acc now)
-  and request f =
-    let callback = Js.wrap_callback (fun now -> f (Js.to_float now)) in
-    ignore (Dom_html.window##requestAnimationFrame callback)
-  in
-  request (fun now -> loop 0. now now)
+    ignore (Dom_html.window##requestAnimationFrame (Lazy.force callback))
+  (* wrapped once and reused every frame; lazy because a let rec can't hold a
+     direct call *)
+  and callback = lazy (Js.wrap_callback on_frame) in
+  ignore (Dom_html.window##requestAnimationFrame (Lazy.force callback))

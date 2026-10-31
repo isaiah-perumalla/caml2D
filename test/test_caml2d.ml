@@ -2,7 +2,7 @@ open Caml2d
 
 let () =
   let a = Vec2.v 3. 4. in
-  assert (Vec2.length a = 5.);
+  assert (Vec2.magnitude a = 5.);
   assert (Vec2.add a (Vec2.v 1. 1.) = Vec2.v 4. 5.);
   assert (Vec2.sub a a = Vec2.zero);
   assert (Vec2.scale 2. a = Vec2.v 6. 8.);
@@ -46,12 +46,12 @@ let () =
   (* iter positions *)
   let ps =
     W.init 3 (fun i ->
-        particle (W.Config.top_left.x /. 2.0, float_of_int i *. 3.) (0., 0.))
+        particle ((Vec2.x W.Config.top_left) /. 2.0, float_of_int i *. 3.) (0., 0.))
   in
   let calls = ref 0 in
   W.iteri_positions
     (fun i x y ->
-      assert (x = W.Config.top_left.x /. 2.);
+      assert (x = (Vec2.x W.Config.top_left) /. 2.);
       assert (y = float_of_int i *. 3.);
       incr calls)
     ps;

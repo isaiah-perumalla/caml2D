@@ -67,8 +67,8 @@ module L = struct
 
   let set ps i ~(position : Vec2.t) ~(prior_position : Vec2.t) ~inv_mass =
     assert (i >= 0 && i < V2.length !(ps.positions));
-    V2.set !(ps.positions) i position.x position.y;
-    V2.set !(ps.prev_positions) i prior_position.x prior_position.y;
+    V2.set !(ps.positions) i (Vec2.x position) (Vec2.y position);
+    V2.set !(ps.prev_positions) i (Vec2.x prior_position) (Vec2.y prior_position);
     V1.set ps.inv_mass i inv_mass
 
   let integrate ps ~forces dt =

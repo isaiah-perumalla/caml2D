@@ -34,7 +34,7 @@ module Make (W : WORLD) = struct
   module Config = W
 
   let () =
-    if not (W.top_left.x < W.bottom_right.x && W.top_left.y < W.bottom_right.y)
+    if not ((Vec2.x W.top_left) < (Vec2.x W.bottom_right) && (Vec2.y W.top_left) < (Vec2.y W.bottom_right))
     then
       invalid_arg "Particles.Make: top_left must be above-left of bottom_right"
 
@@ -97,8 +97,8 @@ module Make (W : WORLD) = struct
     let (Position pos) = Particle.position p in
     let (PriorPosition prev_pos) = Particle.prior_position p in
     let (Mass inv_mass) = Particle.inv_mass p in
-    V2.set !(ps.positions) index pos.x pos.y;
-    V2.set !(ps.prev_positions) index prev_pos.x prev_pos.y;
+    V2.set !(ps.positions) index (Vec2.x pos) (Vec2.y pos);
+    V2.set !(ps.prev_positions) index (Vec2.x prev_pos) (Vec2.y prev_pos);
     V1.set ps.inv_mass index inv_mass
 
   let init n f =
@@ -142,7 +142,7 @@ module Make (W : WORLD) = struct
     assert (i >= 0 && i < V2.length !(ps.positions));
     write ps i particle
 
-  let add_force ps (Force f) = V2.update_add ps.forces f.x f.y
+  let add_force ps (Force f) = V2.update_add ps.forces (Vec2.x f) (Vec2.y f)
 
   (* unchecked: only called from the spring loop, whose indices were
      validated by [connect] *)
@@ -190,8 +190,8 @@ module Make (W : WORLD) = struct
       let prev_posy = V2.gety !(ps.prev_positions) i in
       let inv_mass = V1.get ps.inv_mass i in
       let g = if inv_mass = 0. then 0. else 1. in
-      let ax = (V2.getx ps.forces i *. inv_mass) +. (g *. W.gravity.x) in
-      let ay = (V2.gety ps.forces i *. inv_mass) +. (g *. W.gravity.y) in
+      let ax = (V2.getx ps.forces i *. inv_mass) +. (g *. (Vec2.x W.gravity)) in
+      let ay = (V2.gety ps.forces i *. inv_mass) +. (g *. (Vec2.y W.gravity)) in
 
       (* x' = 2x − prev + a·dt² *)
       let posx' = (2.0 *. posx) -. prev_posx +. (ax *. dt *. dt) in
@@ -200,20 +200,20 @@ module Make (W : WORLD) = struct
 
       (* boundary conditions *)
       (*should this be move to Bounds module ?*)
-      if posx' < W.top_left.x || posx' > W.bottom_right.x then begin
+      if posx' < (Vec2.x W.top_left) || posx' > (Vec2.x W.bottom_right) then begin
         let dx = posx' -. posx in
         let adjusted_x =
-          if posx' < W.top_left.x then W.top_left.x else W.bottom_right.x
+          if posx' < (Vec2.x W.top_left) then (Vec2.x W.top_left) else (Vec2.x W.bottom_right)
         in
         V2.set !(ps.prev_positions) i adjusted_x
           (V2.gety !(ps.prev_positions) i);
         V2.set !(ps.positions) i (adjusted_x +. dx) (V2.gety !(ps.positions) i)
       end;
 
-      if posy' < W.top_left.y || posy' > W.bottom_right.y then begin
+      if posy' < (Vec2.y W.top_left) || posy' > (Vec2.y W.bottom_right) then begin
         let dy = posy' -. posy in
         let adjusted_y =
-          if posy' < W.top_left.y then W.top_left.y else W.bottom_right.y
+          if posy' < (Vec2.y W.top_left) then (Vec2.y W.top_left) else (Vec2.y W.bottom_right)
         in
         V2.set !(ps.prev_positions) i
           (V2.getx !(ps.prev_positions) i)
